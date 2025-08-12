@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
-import { format, addMonths } from "date-fns";
+import { format, addMonths, startOfMonth } from "date-fns";
 import { Loader } from "lucide-react";
 
 // --- Type Definitions ---
@@ -74,7 +74,7 @@ export interface MonthlyFinancials {
 
 // --- Initial State ---
 const today = new Date();
-const initialMonthKey = format(today, "yyyy-MM-01");
+const initialMonthKey = format(startOfMonth(today), "yyyy-MM-01");
 
 const createInitialState = (): Record<string, MonthlyFinancials> => ({
   [initialMonthKey]: {
@@ -163,54 +163,62 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   const currentMonthKey = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1, 1), "yyyy-MM-01"), [currentMonth]);
   
-  const currentMonthData = useMemo(() => {
-    // Ensure there is always data for the current month
-    if (!monthlyData[currentMonthKey]) {
-        const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
-        const lastMonthData = monthlyData[lastMonthKey];
+   // Effect to create new month data if it doesn't exist
+  useEffect(() => {
+    if (isDataLoaded && !monthlyData[currentMonthKey]) {
+      const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
+      const lastMonthData = monthlyData[lastMonthKey];
+
+      let openingBalance = 0;
+      let newBankAccounts = lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc, balance: acc.balance})) || [];
+      let newCash = lastMonthData?.liquidity.cash || 0;
+
+      if (lastMonthData) {
+        const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
+        const expensesFromBank = lastMonthData.transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const expensesFromCash = lastMonthData.transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
         
-        let openingBalance = 0;
-        if(lastMonthData) {
-           const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
-           const expensesFromBank = lastMonthData.transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-           const expensesFromCash = lastMonthData.transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-           const closingBankBalance = bankAccounts.reduce((s,i) => s + i.balance, 0) - expensesFromBank;
-           const closingCash = cash - expensesFromCash;
-           const liquidAssets = closingBankBalance + closingCash + receivables.reduce((s,i) => s+i.amount, 0);
-           const totalDues = creditCards.reduce((s,i) => s+i.due, 0);
-           openingBalance = liquidAssets - totalDues;
-        }
-
-        const newMonthData: MonthlyFinancials = {
-            month: currentMonthKey,
-            liquidity: {
-                openingBalance: lastMonthData ? openingBalance : 0,
-                bankAccounts: lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc, balance: acc.balance})) || [],
-                cash: lastMonthData?.liquidity.cash || 0,
-                creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc})) || [],
-                receivables: [],
-            },
-            transactions: [],
-        };
+        const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        const closingBankBalance = startingBankBalance - expensesFromBank;
+        const closingCash = cash - expensesFromCash;
         
-        if (lastMonthData) {
-            const expensesFromBank = lastMonthData.transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const expensesFromCash = lastMonthData.transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const totalBankBalanceAtStartOfMonth = lastMonthData.liquidity.bankAccounts.reduce((sum, acc) => sum + acc.balance, 0)
-            const closingBankBalance = totalBankBalanceAtStartOfMonth - expensesFromBank;
-            const closingCash = lastMonthData.liquidity.cash - expensesFromCash;
-            newMonthData.liquidity.bankAccounts = lastMonthData.liquidity.bankAccounts.map(b => ({...b, balance: closingBankBalance / lastMonthData.liquidity.bankAccounts.length}));
-            newMonthData.liquidity.cash = closingCash;
-        }
+        const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
+        const liquidAssets = closingBankBalance + closingCash + totalReceivables;
+        const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
 
-        // This is a temporary fix to avoid modifying state during render
-        setTimeout(() => {
-            setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}))
-        }, 0)
+        openingBalance = liquidAssets - totalDues;
+        newBankAccounts = bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [];
+        newCash = closingCash;
+      }
 
-        return newMonthData;
+      const newMonthData: MonthlyFinancials = {
+        month: currentMonthKey,
+        liquidity: {
+          openingBalance,
+          bankAccounts: newBankAccounts,
+          cash: newCash,
+          creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc})) || [],
+          receivables: [],
+        },
+        transactions: [],
+      };
+      
+      setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}));
     }
-    return monthlyData[currentMonthKey];
+  }, [currentMonthKey, monthlyData, isDataLoaded]);
+
+  const currentMonthData = useMemo(() => {
+    return monthlyData[currentMonthKey] || { // Return a default structure if data is not ready yet
+      month: currentMonthKey,
+      liquidity: {
+        openingBalance: 0,
+        bankAccounts: [],
+        cash: 0,
+        creditCards: [],
+        receivables: [],
+      },
+      transactions: [],
+    };
   }, [monthlyData, currentMonthKey]);
   
   
@@ -270,31 +278,40 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     const closingCash = cash - expensesFromCash;
     
     const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
-    const totalClosingLiquidity = closingBankBalance + closingCash + receivables.reduce((sum, r) => sum + r.amount, 0);
+    const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
+    const totalClosingLiquidity = closingBankBalance + closingCash + totalReceivables;
     
     const closingBalance = totalClosingLiquidity - totalDues;
 
     const nextMonthDate = addMonths(new Date(currentMonthKey), 1);
     const nextMonthKey = format(nextMonthDate, "yyyy-MM-01");
 
-    setMonthlyData(prev => ({
-        ...prev,
-        [currentMonthKey]: { 
+    setMonthlyData(prev => {
+        const updatedCurrentMonth = {
             ...prev[currentMonthKey],
             transactions: transactions,
-        },
-        [nextMonthKey]: { 
+        };
+
+        const nextMonthExists = !!prev[nextMonthKey];
+
+        const newNextMonthData = { 
             month: nextMonthKey,
             liquidity: {
                 openingBalance: closingBalance,
-                bankAccounts: bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})),
+                bankAccounts: bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [],
                 cash: closingCash, 
                 creditCards: creditCards.map(c => ({...c, due: 0})),
                 receivables: [],
             },
-            transactions: [],
-        }
-    }));
+            transactions: nextMonthExists ? prev[nextMonthKey].transactions : [],
+        };
+
+        return {
+            ...prev,
+            [currentMonthKey]: updatedCurrentMonth,
+            [nextMonthKey]: newNextMonthData,
+        };
+    });
 
     setCurrentMonth({ year: nextMonthDate.getFullYear(), month: nextMonthDate.getMonth() + 1 });
   };
@@ -350,7 +367,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <FinancialsContext.Provider value={value}>
-      {isDataLoaded ? children : <div className="flex h-screen w-full items-center justify-center"><Loader className="h-8 w-8 animate-spin text-primary" /></div>}
+      {isDataLoaded && currentMonthData ? children : <div className="flex h-screen w-full items-center justify-center"><Loader className="h-8 w-8 animate-spin text-primary" /></div>}
     </FinancialsContext.Provider>
   );
 };
@@ -363,5 +380,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
-    
