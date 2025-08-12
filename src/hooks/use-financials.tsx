@@ -251,8 +251,16 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             const credits = lastMonthData.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
             const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-            const closingBankBalance = startingBankBalance + credits - debits;
-            const closingCash = cash; // Assuming cash expenses are tracked separately or reflected in bank
+            const expensesFromBank = lastMonthData.transactions
+              .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
+              .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            
+            const closingBankBalance = startingBankBalance + credits - expensesFromBank;
+            const expensesFromCash = lastMonthData.transactions
+              .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
+              .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+            const closingCash = cash - expensesFromCash; 
             
             const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
             const liquidAssets = closingBankBalance + closingCash + totalReceivables;
@@ -357,12 +365,21 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     const { liquidity, transactions } = currentMonthData;
     const { bankAccounts, cash, receivables, creditCards } = liquidity;
 
-    const debits = transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
     const credits = transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
       
     const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const closingBankBalance = startingBankBalance + credits - debits;
-    const closingCash = cash; // Modify if cash transactions are handled differently
+
+    const expensesFromBank = transactions
+      .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const closingBankBalance = startingBankBalance + credits - expensesFromBank;
+
+    const expensesFromCash = transactions
+      .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const closingCash = cash - expensesFromCash; 
     
     const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
     const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
@@ -416,15 +433,26 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     return availableMonths.map(monthKey => {
         const data = monthlyData[monthKey];
         if (!data) return null;
-        const { openingBalance, receivables, creditCards } = data.liquidity;
+        const { openingBalance, bankAccounts, cash, receivables, creditCards } = data.liquidity;
 
-        const debits = data.transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
         const credits = data.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+        const expensesFromBank = data.transactions
+            .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        
+        const closingBankBalance = bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0) + credits - expensesFromBank;
+        
+        const expensesFromCash = data.transactions
+            .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        
+        const closingCash = cash - expensesFromCash;
       
         const totalReceivables = receivables.reduce((s, i) => s + i.amount, 0);
         const totalDues = creditCards.reduce((s,i) => s + i.due, 0);
 
-        const liquidity = openingBalance + credits - debits + totalReceivables - totalDues;
+        const liquidity = closingBankBalance + closingCash + totalReceivables - totalDues;
         const netWorth = liquidity + totalReserves;
         
         return {
@@ -471,3 +499,5 @@ export const useFinancials = () => {
   }
   return context;
 };
+
+    
