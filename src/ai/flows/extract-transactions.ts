@@ -148,9 +148,9 @@ const extractTransactionsFlow = ai.defineFlow(
     outputSchema: StatementOutputSchema,
   },
   async (input) => {
-    const {output} = await extractPrompt(input);
-    
     try {
+      const {output} = await extractPrompt(input);
+    
       if (!output || !Array.isArray(output.transactions)) {
         return { transactions: [] };
       }
@@ -162,7 +162,7 @@ const extractTransactionsFlow = ai.defineFlow(
       
       return { transactions: sanitizedTransactions };
     } catch (error) {
-        console.error("Error during transaction sanitization:", error, "Raw output:", output);
+        console.error("Error during AI processing or transaction sanitization:", error);
         // Return empty on any processing error to avoid crashing the client.
         return { transactions: [] };
     }
