@@ -250,7 +250,7 @@ export default function DashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {availableMonths.map(m => (
-                          <SelectItem key={m} value={m}>{format(new Date(m + '-02'), "MMMM yyyy")}</SelectItem>
+                          <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
@@ -525,7 +525,7 @@ export default function DashboardPage() {
           <ChartContainer config={{}} className="h-[300px] w-full">
             <BarChart data={monthlySummary}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis dataKey="month" tickFormatter={(value) => format(new Date(value + '-02'), "MMM")} />
+              <XAxis dataKey="month" tickFormatter={(value) => format(new Date(value), "MMM")} />
               <YAxis tickFormatter={(value) => `₹${value / 1000}k`} />
               <RechartsTooltip 
                 cursor={{fill: 'hsl(var(--muted))'}}
@@ -545,3 +545,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
