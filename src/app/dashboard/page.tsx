@@ -1,13 +1,24 @@
 "use client";
 
-import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, ArrowDownRight, PlusCircle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, ArrowDownRight, PlusCircle, Edit } from "lucide-react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   ChartContainer,
   ChartTooltip,
@@ -24,31 +35,96 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const incomeData = [
-  { name: 'Salary', value: 150000, fill: "hsl(var(--chart-1))" },
-  { name: 'Bonus', value: 25000, fill: "hsl(var(--chart-2))" },
-  { name: 'Other', value: 10000, fill: "hsl(var(--chart-3))" },
-];
 
-const liquidityData = [
-    { name: 'Bank Accounts', value: 250000, fill: "hsl(var(--chart-1))" },
-    { name: 'Cash', value: 15000, fill: "hsl(var(--chart-2))" },
-    { name: 'Credit Cards', value: -50000, fill: "hsl(var(--chart-4))" },
-    { name: 'Receivables', value: 20000, fill: "hsl(var(--chart-5))" },
-];
+const initialLiquidity = {
+    bankAccounts: 250000,
+    cash: 15000,
+    creditCards: 50000,
+    receivables: 20000,
+};
 
-const reservesData = [
-    { name: 'Fixed Deposits', value: 500000 },
-    { name: 'Stocks', value: 750000 },
-    { name: 'Crypto', value: 125000 },
-];
+const initialReserves = {
+    fixedDeposits: 500000,
+    stocks: 750000,
+    crypto: 125000,
+};
+
+const initialIncome = {
+    salary: 150000,
+    bonus: 25000,
+    other: 10000,
+}
 
 export default function DashboardPage() {
+  const [open, setOpen] = useState(false);
+  const [liquidity, setLiquidity] = useState(initialLiquidity);
+  const [reserves, setReserves] = useState(initialReserves);
+  const [income, setIncome] = useState(initialIncome);
+
+  const netWorth = useMemo(() => {
+    const totalLiquidity = Object.values(liquidity).reduce((sum, val) => sum + val, 0) - liquidity.creditCards * 2; // Subtract CC debt
+    const totalReserves = Object.values(reserves).reduce((sum, val) => sum + val, 0);
+    return totalLiquidity + totalReserves;
+  }, [liquidity, reserves]);
+  
+  const totalIncome = useMemo(() => Object.values(income).reduce((sum, val) => sum + val, 0), [income]);
+
+  const liquidityData = [
+    { name: 'Bank Accounts', value: liquidity.bankAccounts, fill: "hsl(var(--chart-1))" },
+    { name: 'Cash', value: liquidity.cash, fill: "hsl(var(--chart-2))" },
+    { name: 'Credit Cards', value: -liquidity.creditCards, fill: "hsl(var(--chart-4))" },
+    { name: 'Receivables', value: liquidity.receivables, fill: "hsl(var(--chart-5))" },
+  ];
+
+  const reservesData = [
+    { name: 'Fixed Deposits', value: reserves.fixedDeposits },
+    { name: 'Stocks', value: reserves.stocks },
+    { name: 'Crypto', value: reserves.crypto },
+  ];
+
+  const incomeData = [
+    { name: 'Salary', value: income.salary, fill: "hsl(var(--chart-1))" },
+    { name: 'Bonus', value: income.bonus, fill: "hsl(var(--chart-2))" },
+    { name: 'Other', value: income.other, fill: "hsl(var(--chart-3))" },
+  ];
+
+  const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+    
+    setLiquidity({
+        bankAccounts: Number(data.bankAccounts),
+        cash: Number(data.cash),
+        creditCards: Number(data.creditCards),
+        receivables: Number(data.receivables),
+    });
+
+    setReserves({
+        fixedDeposits: Number(data.fixedDeposits),
+        stocks: Number(data.stocks),
+        crypto: Number(data.crypto),
+    });
+
+    setIncome({
+        salary: Number(data.salary),
+        bonus: Number(data.bonus),
+        other: Number(data.other),
+    });
+
+    setOpen(false);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-            <h2 className="text-2xl font-bold">Financial Overview</h2>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+                <h2 className="text-2xl font-bold">Financial Overview</h2>
+                <p className="text-muted-foreground">Your financial dashboard at a glance.</p>
+            </div>
             <div className="flex items-center gap-2">
                  <Select defaultValue="2024">
                     <SelectTrigger className="w-[120px]">
@@ -78,6 +154,83 @@ export default function DashboardPage() {
                         <SelectItem value="december">December</SelectItem>
                     </SelectContent>
                 </Select>
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Your Financials</DialogTitle>
+                            <DialogDescription>
+                                Update your current financial standing. This will update your dashboard.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleSaveChanges}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4 max-h-[60vh] overflow-y-auto pr-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-lg">Liquidity</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="bankAccounts">Bank Accounts (₹)</Label>
+                                            <Input id="bankAccounts" name="bankAccounts" type="number" defaultValue={liquidity.bankAccounts} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="cash">Cash (₹)</Label>
+                                            <Input id="cash" name="cash" type="number" defaultValue={liquidity.cash} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="creditCards">Credit Card Dues (₹)</Label>
+                                            <Input id="creditCards" name="creditCards" type="number" defaultValue={liquidity.creditCards} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="receivables">Receivables (₹)</Label>
+                                            <Input id="receivables" name="receivables" type="number" defaultValue={liquidity.receivables} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                     <CardHeader><CardTitle className="text-lg">Reserves</CardTitle></CardHeader>
+                                     <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="fixedDeposits">Fixed Deposits (₹)</Label>
+                                            <Input id="fixedDeposits" name="fixedDeposits" type="number" defaultValue={reserves.fixedDeposits} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="stocks">Stocks (₹)</Label>
+                                            <Input id="stocks" name="stocks" type="number" defaultValue={reserves.stocks} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="crypto">Crypto (₹)</Label>
+                                            <Input id="crypto" name="crypto" type="number" defaultValue={reserves.crypto} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                     <CardHeader><CardTitle className="text-lg">Monthly Income</CardTitle></CardHeader>
+                                     <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="salary">Salary (₹)</Label>
+                                            <Input id="salary" name="salary" type="number" defaultValue={income.salary} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="bonus">Bonus (₹)</Label>
+                                            <Input id="bonus" name="bonus" type="number" defaultValue={income.bonus} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="other">Other Income (₹)</Label>
+                                            <Input id="other" name="other" type="number" defaultValue={income.other} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <DialogFooter className="pt-6">
+                                <Button type="submit">Save changes</Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
 
@@ -88,7 +241,7 @@ export default function DashboardPage() {
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹15,10,000</div>
+            <div className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground text-green-500 flex items-center">
               <ArrowUpRight className="h-4 w-4 mr-1" />
               +5.2% from last month
@@ -121,7 +274,7 @@ export default function DashboardPage() {
             <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹1,85,000</div>
+            <div className="text-2xl font-bold">₹{totalIncome.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground">
               For July 2024
             </p>
