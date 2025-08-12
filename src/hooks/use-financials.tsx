@@ -91,6 +91,16 @@ export interface MonthlyFinancials {
     transactions: Transaction[];
 }
 
+// --- Helper for Unique IDs ---
+const generateUniqueId = (transaction: Omit<Transaction, 'id'>): number => {
+    const randomPart = Math.random() * 10000;
+    const datePart = new Date(transaction.date).getTime();
+    // A simple hash from the description
+    const descPart = transaction.description.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return datePart + (transaction.amount * 100) + descPart + randomPart;
+}
+
+
 // --- Initial State ---
 const today = new Date();
 const initialMonthKey = format(startOfMonth(today), "yyyy-MM-01");
@@ -281,7 +291,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction = { ...transaction, id: Date.now() + Math.random() };
+    const newTransaction = { ...transaction, id: generateUniqueId(transaction) };
     
     setMonthlyData(prev => ({
       ...prev,
@@ -293,7 +303,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
-       const newTransactions = transactions.map(t => ({...t, id: Date.now() + Math.random() * Math.random()}));
+       const newTransactions = transactions.map(t => ({...t, id: generateUniqueId(t) }));
        
        setMonthlyData(prev => {
             const newState = {...prev};
@@ -464,4 +474,5 @@ export const useFinancials = () => {
   return context;
 };
 
+    
     
