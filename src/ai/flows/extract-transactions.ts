@@ -33,6 +33,7 @@ const TransactionSchema = z.object({
 
 const StatementOutputSchema = z.object({
   transactions: z.array(TransactionSchema).describe("An array of transactions extracted from the statement."),
+  error: z.string().optional().describe("An error message if the operation failed."),
 });
 export type StatementOutput = z.infer<typeof StatementOutputSchema>;
 
@@ -44,7 +45,7 @@ export async function extractTransactionsFromStatement(input: StatementInput): P
 const extractPrompt = ai.definePrompt({
     name: 'extractTransactionsPrompt',
     input: {schema: StatementInputSchema},
-    output: {schema: StatementOutputSchema},
+    output: {schema: z.object({ transactions: z.array(TransactionSchema) })},
     prompt: `You are an expert financial analyst AI. Your task is to extract all transactions from the provided bank statement PDF for the period between {{{startDate}}} and {{{endDate}}}.
 
 Analyze the document carefully and extract the following details for each transaction:
@@ -152,7 +153,7 @@ const extractTransactionsFlow = ai.defineFlow(
       const {output} = await extractPrompt(input);
     
       if (!output || !Array.isArray(output.transactions)) {
-        return { transactions: [] };
+        return { transactions: [], error: "AI returned no transactions or invalid data." };
       }
 
       // Try to find the bank name from one of the valid transactions to use as a default
@@ -161,10 +162,9 @@ const extractTransactionsFlow = ai.defineFlow(
       const sanitizedTransactions = sanitizeTransactions(output.transactions, { bank: bankName });
       
       return { transactions: sanitizedTransactions };
-    } catch (error) {
-        console.error("Error during AI processing or transaction sanitization:", error);
-        // Return empty on any processing error to avoid crashing the client.
-        return { transactions: [] };
+    } catch (error: any) {
+        console.error("Error in extractTransactionsFlow:", error);
+        return { transactions: [], error: error.message || "An unexpected error occurred during statement processing." };
     }
   }
 );

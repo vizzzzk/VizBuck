@@ -70,7 +70,13 @@ export default function ImportPage() {
                 endDate: format(dateRange.to, 'yyyy-MM-dd'),
             });
 
-            if (result && result.transactions.length > 0) {
+            if (result.error) {
+                toast({
+                    variant: "destructive",
+                    title: "Import Error",
+                    description: result.error,
+                });
+            } else if (result && result.transactions.length > 0) {
                 addMultipleTransactions(result.transactions);
                 toast({
                     title: "Import Successful",
@@ -84,12 +90,12 @@ export default function ImportPage() {
                 });
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             toast({
                 variant: "destructive",
                 title: "Upload Error",
-                description: "An error occurred while processing the statement.",
+                description: error.message || "An unexpected error occurred while processing the statement.",
             });
         } finally {
             setIsUploading(false);
@@ -182,4 +188,3 @@ export default function ImportPage() {
         </Card>
     );
 }
-
