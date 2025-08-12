@@ -3,13 +3,14 @@
 
 import * as React from "react";
 import { useMemo } from "react";
-import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, PlusCircle, Edit, Trash2, CalendarIcon, ArrowRight } from "lucide-react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -27,7 +28,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { Pie, PieChart, Cell } from "recharts";
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import {
   Select,
   SelectContent,
@@ -40,7 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useFinancials } from "@/hooks/use-financials";
@@ -56,49 +56,57 @@ const cryptoExchanges = ["WazirX", "CoinDCX", "CoinSwitch Kuber", "Binance", "Ot
 export default function DashboardPage() {
   const [open, setOpen] = React.useState(false);
   const { 
-    liquidity, 
-    reserves, 
-    transactions,
-    setLiquidity,
-    setReserves,
-    isDataLoaded
+    currentMonthData,
+    reserves,
+    isDataLoaded,
+    updateLiquidity,
+    updateReserves,
+    currentMonth,
+    setCurrentMonth,
+    availableMonths,
+    closeMonth,
+    monthlySummary
   } = useFinancials();
 
   // --- Dynamic Form State ---
-  const [formLiquidity, setFormLiquidity] = React.useState(liquidity);
+  const [formLiquidity, setFormLiquidity] = React.useState(currentMonthData.liquidity);
   const [formReserves, setFormReserves] = React.useState(reserves);
 
   // Reset form state when dialog opens or data loads
   React.useEffect(() => {
     if(isDataLoaded) {
-      setFormLiquidity(liquidity);
+      setFormLiquidity(currentMonthData.liquidity);
       setFormReserves(reserves);
     }
-  }, [open, liquidity, reserves, isDataLoaded]);
+  }, [open, currentMonthData, reserves, isDataLoaded]);
   
   
-  const handleAddItem = (section: string, field: string) => {
+  const handleAddItem = (section: 'liquidity' | 'reserves', field: string) => {
     const newId = Date.now();
+    const updater = (prev: any) => {
+        const currentItems = prev[field as keyof typeof prev] as any[];
+        return {
+            ...prev,
+            [field]: [...currentItems, {id: newId, name: '', institution: '', broker: '', exchange: '', source: '', balance: 0, due: 0, amount: 0, date: new Date()}]
+        }
+    };
     if(section === 'liquidity') {
-        const currentItems = formLiquidity[field as keyof typeof formLiquidity] as any[];
-        setFormLiquidity(prev => ({...prev, [field]: [...currentItems, {id: newId, name: '', balance: 0, due: 0, source: '', amount: 0, date: new Date()}]}))
+        setFormLiquidity(updater);
     } else if (section === 'reserves') {
-        const currentItems = formReserves[field as keyof typeof formReserves] as any[];
-        setFormReserves(prev => ({...prev, [field]: [...currentItems, {id: newId, institution: '', broker: '', exchange: '', amount: 0}]}))
+        setFormReserves(updater);
     }
   }
 
-  const handleRemoveItem = (section: string, field: string, id: number) => {
-    if(section === 'liquidity') {
-        const currentItems = formLiquidity[field as keyof typeof formLiquidity] as any[];
-        setFormLiquidity(prev => ({...prev, [field]: currentItems.filter(item => item.id !== id)}));
-    } else if (section === 'reserves') {
-        const currentItems = formReserves[field as keyof typeof formReserves] as any[];
-        setFormReserves(prev => ({...prev, [field]: currentItems.filter(item => item.id !== id)}));
-    }
+  const handleRemoveItem = (section: 'liquidity' | 'reserves', field: string, id: number) => {
+     const updater = (prev: any) => {
+        const currentItems = prev[field as keyof typeof prev] as any[];
+        return {...prev, [field]: currentItems.filter(item => item.id !== id)};
+    };
+    if(section === 'liquidity') setFormLiquidity(updater);
+    else if (section === 'reserves') setFormReserves(updater);
   }
   
-  const handleFormChange = (section: string, field: string, id: number, event: React.ChangeEvent<HTMLInputElement> | string, key: string) => {
+  const handleFormChange = (section: 'liquidity' | 'reserves', field: string, id: number, event: React.ChangeEvent<HTMLInputElement> | string, key: string) => {
      const rawValue = typeof event === 'string' ? event : event.target.value;
      const name = typeof event === 'string' ? key : event.target.name;
      const value = name === 'balance' || name === 'due' || name === 'amount' ? Number(rawValue) : rawValue;
@@ -125,21 +133,58 @@ export default function DashboardPage() {
   }
 
   // --- Calculations ---
-  const totalBankBalance = useMemo(() => liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0), [liquidity.bankAccounts]);
-  const totalCreditCardDues = useMemo(() => liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0), [liquidity.creditCards]);
-  const totalReceivables = useMemo(() => liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0), [liquidity.receivables]);
-  const totalCash = useMemo(() => Number(liquidity.cash || 0), [liquidity.cash]);
-  const totalLiquidAssets = useMemo(() => totalBankBalance + totalCash + totalReceivables, [totalBankBalance, totalCash, totalReceivables]);
-  const totalExpenses = useMemo(() => transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0), [transactions]);
-  
-  const totalFixedDeposits = useMemo(() => reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0), [reserves.fixedDeposits]);
-  const totalStocks = useMemo(() => reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0), [reserves.stocks]);
-  const totalCrypto = useMemo(() => reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0), [reserves.crypto]);
-  const totalReserves = useMemo(() => totalFixedDeposits + totalStocks + totalCrypto, [totalFixedDeposits, totalStocks, totalCrypto]);
+  const { 
+    totalBankBalance, 
+    totalCreditCardDues,
+    totalReceivables,
+    totalCash,
+    totalLiquidAssets,
+    totalExpenses,
+    totalFixedDeposits,
+    totalStocks,
+    totalCrypto,
+    totalReserves,
+    openingBalance,
+    closingBalance,
+    netWorth
+  } = useMemo(() => {
+    const liquidity = currentMonthData.liquidity;
+    const transactions = currentMonthData.transactions;
 
-  const openingBalance = useMemo(() => totalLiquidAssets - totalCreditCardDues, [totalLiquidAssets, totalCreditCardDues]);
-  const closingBalance = useMemo(() => openingBalance - totalExpenses, [openingBalance, totalExpenses]);
-  const netWorth = useMemo(() => totalLiquidAssets + totalReserves - totalCreditCardDues, [totalLiquidAssets, totalReserves, totalCreditCardDues]);
+    const totalBankBalance = liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
+    const totalCreditCardDues = liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0);
+    const totalReceivables = liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const totalCash = Number(liquidity.cash || 0);
+    const totalLiquidAssets = totalBankBalance + totalCash + totalReceivables;
+    const totalExpenses = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    
+    const totalFixedDeposits = reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0);
+    const totalStocks = reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0);
+    const totalCrypto = reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+    const totalReserves = totalFixedDeposits + totalStocks + totalCrypto;
+    
+    // Note: Opening balance for a month is pre-calculated on month close.
+    const openingBalance = liquidity.openingBalance;
+    const closingBalance = openingBalance - totalExpenses;
+    const netWorth = (totalLiquidAssets - totalCreditCardDues) + totalReserves;
+    
+    return {
+        totalBankBalance,
+        totalCreditCardDues,
+        totalReceivables,
+        totalCash,
+        totalLiquidAssets,
+        totalExpenses,
+        totalFixedDeposits,
+        totalStocks,
+        totalCrypto,
+        totalReserves,
+        openingBalance,
+        closingBalance,
+        netWorth
+    };
+  }, [currentMonthData, reserves]);
+
   
   const liquidityData = [
     { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
@@ -152,19 +197,26 @@ export default function DashboardPage() {
     { name: 'Fixed Deposits', value: totalFixedDeposits, fill: "hsl(var(--chart-1))" },
     { name: 'Stocks', value: totalStocks, fill: "hsl(var(--chart-4))" },
     { name: 'Crypto', value: totalCrypto, fill: "hsl(var(--chart-2))" },
-  ].filter(item => item.value !== 0);
+  ].filter(item => item.value > 0);
 
   const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLiquidity(formLiquidity);
-    setReserves(formReserves);
+    updateLiquidity(formLiquidity);
+    updateReserves(formReserves);
     setOpen(false);
   }
 
+  const handleMonthChange = (value: string) => {
+    const [year, month] = value.split("-");
+    setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
+  };
+  
   if (!isDataLoaded) {
       // You can return a loading spinner here
       return null;
   }
+
+  const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
 
   return (
     <div className="flex flex-col gap-8">
@@ -174,35 +226,29 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground">Your financial dashboard at a glance.</p>
             </div>
             <div className="flex items-center gap-2">
-                 <Select defaultValue="2025">
-                    <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Year" />
+                 <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select Month" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="2025">2025</SelectItem>
+                        {availableMonths.map(m => (
+                          <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
-                 <Select defaultValue="july">
-                    <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="july">July</SelectItem>
-                        <SelectItem value="august">August</SelectItem>
-                    </SelectContent>
-                </Select>
+                <Button onClick={closeMonth}><ArrowRight className="h-4 w-4 mr-2"/> Close Month & Advance</Button>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button variant="outline">
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit Financials
+                            Edit Assets
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-4xl">
                         <DialogHeader>
-                            <DialogTitle>Edit Your Financials</DialogTitle>
+                            <DialogTitle>Edit Your Financial Assets</DialogTitle>
                             <DialogDescription>
-                                Update your current financial standing. This will update your dashboard.
+                                Update your current financial standing. This will update your dashboard for the selected month.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleSaveChanges}>
@@ -210,7 +256,7 @@ export default function DashboardPage() {
                                 
                                 {/* Liquidity Section */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-xl text-primary">Liquidity</h3>
+                                    <h3 className="font-semibold text-xl text-primary">Liquidity (Current Assets)</h3>
                                     {/* Bank Accounts */}
                                     <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Bank Accounts</Label>
@@ -220,7 +266,7 @@ export default function DashboardPage() {
                                                     <SelectTrigger><SelectValue placeholder="Select Bank"/></SelectTrigger>
                                                     <SelectContent>{indianBanks.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
-                                                <Input name="balance" type="number" placeholder="Balance" value={acc.balance} onChange={(e) => handleFormChange('liquidity', 'bankAccounts', acc.id, e, '')} />
+                                                <Input name="balance" type="number" placeholder="Balance" value={acc.balance} onChange={(e) => handleFormChange('liquidity', 'bankAccounts', acc.id, e, 'balance')} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('liquidity', 'bankAccounts', acc.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
@@ -236,7 +282,7 @@ export default function DashboardPage() {
                                                     <SelectTrigger><SelectValue placeholder="Select Issuer"/></SelectTrigger>
                                                     <SelectContent>{creditCardIssuers.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
-                                                <Input name="due" type="number" placeholder="Dues" value={card.due} onChange={(e) => handleFormChange('liquidity', 'creditCards', card.id, e, '')} />
+                                                <Input name="due" type="number" placeholder="Dues" value={card.due} onChange={(e) => handleFormChange('liquidity', 'creditCards', card.id, e, 'due')} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('liquidity', 'creditCards', card.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
@@ -249,8 +295,8 @@ export default function DashboardPage() {
                                         {formLiquidity.receivables.map((r) => (
                                              <div key={r.id} className="space-y-2">
                                                 <div className="flex gap-2 items-center">
-                                                    <Input name="source" placeholder="Source" value={r.source} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
-                                                    <Input name="amount" type="number" placeholder="Amount" value={r.amount} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
+                                                    <Input name="source" placeholder="Source" value={r.source} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, 'source')} />
+                                                    <Input name="amount" type="number" placeholder="Amount" value={r.amount} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, 'amount')} />
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('liquidity', 'receivables', r.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                                 </div>
                                                 <Popover>
@@ -282,8 +328,8 @@ export default function DashboardPage() {
                                         <Label>Fixed Deposits</Label>
                                         {formReserves.fixedDeposits.map((fd) => (
                                              <div key={fd.id} className="flex gap-2 items-center">
-                                                <Input name="institution" placeholder="Institution" value={fd.institution} onChange={(e) => handleFormChange('reserves', 'fixedDeposits', fd.id, e, '')} />
-                                                <Input name="amount" type="number" placeholder="Amount" value={fd.amount} onChange={(e) => handleFormChange('reserves', 'fixedDeposits', fd.id, e, '')} />
+                                                <Input name="institution" placeholder="Institution" value={fd.institution} onChange={(e) => handleFormChange('reserves', 'fixedDeposits', fd.id, e, 'institution')} />
+                                                <Input name="amount" type="number" placeholder="Amount" value={fd.amount} onChange={(e) => handleFormChange('reserves', 'fixedDeposits', fd.id, e, 'amount')} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('reserves', 'fixedDeposits', fd.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
@@ -298,7 +344,7 @@ export default function DashboardPage() {
                                                     <SelectTrigger><SelectValue placeholder="Select Broker"/></SelectTrigger>
                                                     <SelectContent>{stockBrokers.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
-                                                <Input name="amount" type="number" placeholder="Amount" value={s.amount} onChange={(e) => handleFormChange('reserves', 'stocks', s.id, e, '')} />
+                                                <Input name="amount" type="number" placeholder="Amount" value={s.amount} onChange={(e) => handleFormChange('reserves', 'stocks', s.id, e, 'amount')} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('reserves', 'stocks', s.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
@@ -313,7 +359,7 @@ export default function DashboardPage() {
                                                     <SelectTrigger><SelectValue placeholder="Select Exchange"/></SelectTrigger>
                                                     <SelectContent>{cryptoExchanges.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                                 </Select>
-                                                <Input name="amount" type="number" placeholder="Amount" value={c.amount} onChange={(e) => handleFormChange('reserves', 'crypto', c.id, e, '')} />
+                                                <Input name="amount" type="number" placeholder="Amount" value={c.amount} onChange={(e) => handleFormChange('reserves', 'crypto', c.id, e, 'amount')} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('reserves', 'crypto', c.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
@@ -340,8 +386,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground flex items-center pt-1">
-              <ArrowUpRight className="h-4 w-4 mr-1 text-green-500" />
-              <span className="text-green-500">+5.2%</span>&nbsp;from last month
+              Total value of your assets & reserves
             </p>
           </CardContent>
         </Card>
@@ -352,7 +397,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground pt-1">As of start of July</p>
+             <p className="text-xs text-muted-foreground pt-1">As of start of {format(new Date(formattedCurrentMonth), "MMMM")}</p>
           </CardContent>
         </Card>
         <Card>
@@ -377,12 +422,12 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-5">
-        <Card className="md:col-span-3">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Liquidity Breakdown</CardTitle>
             <CardDescription>
-              Your current assets vs. liabilities.
+              Your current assets vs. liabilities for {format(new Date(formattedCurrentMonth), "MMMM yyyy")}.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
@@ -392,7 +437,7 @@ export default function DashboardPage() {
                 cash: { label: "Cash", color: "hsl(var(--chart-2))" },
                 receivables: { label: "Receivables", color: "hsl(var(--chart-5))" },
                 creditCardDues: { label: "Credit Card Dues", color: "hsl(var(--chart-3))" },
-             }} className="h-[350px] w-full">
+             }} className="h-[300px] w-full">
                <PieChart>
                  <ChartTooltip
                     cursor={true}
@@ -407,8 +452,8 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={140}
-                    innerRadius={90}
+                    outerRadius={120}
+                    innerRadius={80}
                     strokeWidth={2}
                     stroke="hsl(var(--border))"
                  >
@@ -421,15 +466,15 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
-         <Card className="md:col-span-2">
+         <Card>
           <CardHeader>
             <CardTitle>Reserves & Investments</CardTitle>
             <CardDescription>
-              Your long-term asset allocation.
+              Your long-term asset allocation (continuous).
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-             {reservesData.map((item) => (
+          <CardContent className="space-y-4 pt-4">
+             {reservesData.length > 0 ? reservesData.map((item) => (
                 <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-muted/50 rounded-lg" style={{ color: item.fill }}>
@@ -444,10 +489,41 @@ export default function DashboardPage() {
                     </div>
                     <span className="font-bold text-xl text-card-foreground">₹{item.value.toLocaleString('en-IN')}</span>
                 </div>
-             ))}
+             )) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                    No reserves added yet.
+                </div>
+             )}
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Historical Performance</CardTitle>
+          <CardDescription>Month-wise trend of your financial health.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{}} className="h-[300px] w-full">
+            <BarChart data={monthlySummary}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="month" tickFormatter={(value) => format(new Date(value), "MMM")} />
+              <YAxis tickFormatter={(value) => `₹${value / 1000}k`} />
+              <RechartsTooltip 
+                cursor={{fill: 'hsl(var(--muted))'}}
+                content={<ChartTooltipContent 
+                    className="bg-background/80 backdrop-blur-sm"
+                    formatter={(value, name) => `₹${Number(value).toLocaleString('en-IN')}`}
+                />}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar dataKey="liquidity" fill="hsl(var(--chart-2))" name="Liquidity" radius={4} />
+              <Bar dataKey="reserves" fill="hsl(var(--chart-4))" name="Reserves" radius={4} />
+              <Bar dataKey="netWorth" fill="hsl(var(--chart-1))" name="Net Worth" radius={4} />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }

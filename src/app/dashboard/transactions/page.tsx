@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -39,10 +39,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFinancials, Transaction } from '@/hooks/use-financials';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 export default function TransactionsPage() {
     const [open, setOpen] = useState(false);
-    const { transactions, addTransaction, liquidity } = useFinancials();
+    const { currentMonthData, addTransaction, currentMonthData: { liquidity } } = useFinancials();
+    const { toast } = useToast();
+
     const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id'>>({
         date: new Date().toISOString().split('T')[0],
         description: '',
@@ -53,12 +57,19 @@ export default function TransactionsPage() {
 
     const handleSave = () => {
         if (!newTransaction.description || !newTransaction.category || newTransaction.amount <= 0 || !newTransaction.paymentMethod) {
-            // Basic validation
-            alert("Please fill all fields correctly.");
+            toast({
+                variant: "destructive",
+                title: "Invalid Input",
+                description: "Please fill all fields correctly to add a transaction.",
+            });
             return;
         }
         addTransaction(newTransaction);
         setOpen(false);
+        toast({
+            title: "Transaction Added",
+            description: `Expense of ₹${newTransaction.amount} for "${newTransaction.description}" has been recorded.`,
+        });
         // Reset form
         setNewTransaction({
             date: new Date().toISOString().split('T')[0],
@@ -69,14 +80,16 @@ export default function TransactionsPage() {
         });
     }
 
-    const paymentMethods = ['Cash', ...liquidity.bankAccounts.map(acc => acc.name)];
+    const paymentMethods = useMemo(() => {
+       return ['Cash', ...liquidity.bankAccounts.map(acc => acc.name)];
+    }, [liquidity.bankAccounts]);
 
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Transactions</CardTitle>
-                    <CardDescription>View and manage your recent expenses.</CardDescription>
+                    <CardDescription>View and manage your recent expenses for {format(new Date(currentMonthData.month), "MMMM yyyy")}.</CardDescription>
                 </div>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
@@ -173,8 +186,8 @@ export default function TransactionsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactions.length > 0 ? (
-                            transactions.map((transaction) => (
+                        {currentMonthData.transactions.length > 0 ? (
+                            currentMonthData.transactions.map((transaction) => (
                                 <TableRow key={transaction.id}>
                                     <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                                     <TableCell className="font-medium">{transaction.description}</TableCell>
@@ -201,7 +214,7 @@ export default function TransactionsPage() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">
-                                    No transactions yet.
+                                    No transactions for this month yet.
                                 </TableCell>
                             </TableRow>
                         )}

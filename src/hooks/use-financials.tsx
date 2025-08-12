@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
+import { format, addMonths } from "date-fns";
 
 // --- Type Definitions ---
 export interface BankAccount {
@@ -24,6 +25,7 @@ export interface Receivable {
 }
 
 export interface Liquidity {
+  openingBalance: number;
   bankAccounts: BankAccount[];
   cash: number;
   creditCards: CreditCard[];
@@ -63,14 +65,30 @@ export interface Transaction {
     paymentMethod: string; // e.g., 'Cash', 'HDFC Bank'
 }
 
+export interface MonthlyFinancials {
+    month: string; // YYYY-MM-DD format
+    liquidity: Liquidity;
+    transactions: Transaction[];
+}
 
 // --- Initial State ---
-const initialLiquidity: Liquidity = {
-    bankAccounts: [{ id: 1, name: 'HDFC Bank', balance: 250000 }],
-    cash: 15000,
-    creditCards: [{ id: 1, name: 'HDFC Bank', due: 50000 }],
-    receivables: [{ id: 1, source: 'Freelance Project', amount: 20000, date: new Date() }],
-};
+const today = new Date();
+const initialMonthKey = format(today, "yyyy-MM-01");
+
+const createInitialState = (): Record<string, MonthlyFinancials> => ({
+  [initialMonthKey]: {
+    month: initialMonthKey,
+    liquidity: {
+      openingBalance: 285000,
+      bankAccounts: [{ id: 1, name: 'HDFC Bank', balance: 250000 }],
+      cash: 15000,
+      creditCards: [{ id: 1, name: 'HDFC Bank', due: 50000 }],
+      receivables: [{ id: 1, source: 'Freelance Project', amount: 70000, date: new Date() }],
+    },
+    transactions: [],
+  }
+});
+
 
 const initialReserves: Reserves = {
     fixedDeposits: [{id: 1, institution: 'HDFC Bank', amount: 500000}],
@@ -78,17 +96,20 @@ const initialReserves: Reserves = {
     crypto: [{id: 1, exchange: 'WazirX', amount: 125000}],
 };
 
-const initialTransactions: Transaction[] = [];
-
 
 // --- Context Definition ---
 interface FinancialsContextType {
-  liquidity: Liquidity;
-  setLiquidity: React.Dispatch<React.SetStateAction<Liquidity>>;
+  monthlyData: Record<string, MonthlyFinancials>;
   reserves: Reserves;
-  setReserves: React.Dispatch<React.SetStateAction<Reserves>>;
-  transactions: Transaction[];
+  currentMonth: { year: number, month: number };
+  setCurrentMonth: React.Dispatch<React.SetStateAction<{ year: number, month: number }>>;
+  currentMonthData: MonthlyFinancials;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  updateLiquidity: (liquidity: Liquidity) => void;
+  updateReserves: (reserves: Reserves) => void;
+  closeMonth: () => void;
+  availableMonths: string[];
+  monthlySummary: { month: string; liquidity: number; reserves: number; netWorth: number }[];
   isDataLoaded: boolean;
 }
 
@@ -98,24 +119,66 @@ const FinancialsContext = createContext<FinancialsContextType | undefined>(undef
 export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  const [liquidity, setLiquidity] = useState<Liquidity>(initialLiquidity);
+  const [monthlyData, setMonthlyData] = useState<Record<string, MonthlyFinancials>>(createInitialState());
   const [reserves, setReserves] = useState<Reserves>(initialReserves);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [currentMonth, setCurrentMonth] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
 
-  // Load from localStorage on initial render
+  // Load from localStorage on initial render - DISABLED FOR NOW
   useEffect(() => {
     // This is a placeholder for potential async data loading in the future
     setIsDataLoaded(true);
   }, []);
 
 
+  const currentMonthKey = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1, 1), "yyyy-MM-01"), [currentMonth]);
+  
+  const currentMonthData = useMemo(() => {
+    // Ensure there is always data for the current month
+    if (!monthlyData[currentMonthKey]) {
+        // This case should ideally be handled by month closing logic, but as a fallback:
+        const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
+        const lastMonthData = monthlyData[lastMonthKey];
+        const openingBalance = lastMonthData ? lastMonthData.liquidity.openingBalance - lastMonthData.transactions.reduce((acc, t) => acc + t.amount, 0) : 0;
+        
+        return {
+            month: currentMonthKey,
+            liquidity: {
+                openingBalance: openingBalance,
+                bankAccounts: lastMonthData?.liquidity.bankAccounts || [],
+                cash: openingBalance,
+                creditCards: [],
+                receivables: [],
+            },
+            transactions: [],
+        };
+    }
+    return monthlyData[currentMonthKey];
+  }, [monthlyData, currentMonthKey]);
+  
+  
+  const updateLiquidity = (liquidity: Liquidity) => {
+    setMonthlyData(prev => ({
+      ...prev,
+      [currentMonthKey]: { ...prev[currentMonthKey], liquidity }
+    }));
+  };
+
+  const updateReserves = (reserves: Reserves) => {
+    setReserves(reserves);
+  };
+  
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
     const newTransaction = { ...transaction, id: Date.now() };
-    setTransactions(prev => [...prev, newTransaction]);
     
-    // Deduct amount from the correct source
-    setLiquidity(prevLiquidity => {
-        const newLiquidity = {...prevLiquidity};
+    setMonthlyData(prev => {
+        const newMonthlyData = {...prev};
+        const monthData = newMonthlyData[currentMonthKey];
+        
+        // Update transactions
+        monthData.transactions = [...monthData.transactions, newTransaction];
+        
+        // Update liquidity based on payment method
+        const newLiquidity = {...monthData.liquidity};
         if (transaction.paymentMethod === 'Cash') {
             newLiquidity.cash -= transaction.amount;
         } else {
@@ -126,17 +189,70 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
                 newLiquidity.bankAccounts[bankAccountIndex].balance -= transaction.amount;
             }
         }
-        return newLiquidity;
+        monthData.liquidity = newLiquidity;
+        
+        return newMonthlyData;
     });
   };
 
+  const closeMonth = () => {
+    const { openingBalance, bankAccounts, cash } = currentMonthData.liquidity;
+    const totalExpenses = currentMonthData.transactions.reduce((sum, t) => sum + t.amount, 0);
+    const closingBalance = openingBalance - totalExpenses;
+
+    const nextMonthDate = addMonths(new Date(currentMonthKey), 1);
+    const nextMonthKey = format(nextMonthDate, "yyyy-MM-01");
+
+    setMonthlyData(prev => ({
+        ...prev,
+        [nextMonthKey]: {
+            month: nextMonthKey,
+            liquidity: {
+                openingBalance: closingBalance,
+                bankAccounts: bankAccounts.map(b => ({...b})), // Deep copy
+                cash: closingBalance, // Simplified: closing balance becomes next month's opening cash
+                creditCards: [],
+                receivables: [],
+            },
+            transactions: [],
+        }
+    }));
+
+    setCurrentMonth({ year: nextMonthDate.getFullYear(), month: nextMonthDate.getMonth() + 1 });
+  };
+  
+  const availableMonths = useMemo(() => Object.keys(monthlyData).sort(), [monthlyData]);
+  
+  const monthlySummary = useMemo(() => {
+    const totalReserves = reserves.fixedDeposits.reduce((s, i) => s + i.amount, 0) + reserves.stocks.reduce((s, i) => s + i.amount, 0) + reserves.crypto.reduce((s, i) => s + i.amount, 0);
+
+    return availableMonths.map(monthKey => {
+        const data = monthlyData[monthKey];
+        const { bankAccounts, cash, receivables, creditCards } = data.liquidity;
+        const liquidity = bankAccounts.reduce((s, i) => s + i.balance, 0) + cash + receivables.reduce((s, i) => s + i.amount, 0);
+        const netWorth = (liquidity - creditCards.reduce((s, i) => s + i.due, 0)) + totalReserves;
+        return {
+            month: monthKey,
+            liquidity,
+            reserves: totalReserves,
+            netWorth,
+        }
+    });
+  }, [monthlyData, reserves, availableMonths]);
+
+
   const value = {
-    liquidity,
-    setLiquidity,
+    monthlyData,
     reserves,
-    setReserves,
-    transactions,
+    currentMonth,
+    setCurrentMonth,
+    currentMonthData,
     addTransaction,
+    updateLiquidity,
+    updateReserves,
+    closeMonth,
+    availableMonths,
+    monthlySummary,
     isDataLoaded
   };
 
