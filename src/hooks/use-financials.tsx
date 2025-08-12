@@ -145,7 +145,9 @@ interface FinancialsContextType {
   addMultipleTransactions: (transactions: Omit<Transaction, 'id'>[]) => void;
   updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
+  deleteMultipleTransactions: (ids: string[]) => void;
   clearTransactionsForCurrentMonth: () => void;
+  clearAllData: () => void;
   updateLiquidity: (liquidity: Liquidity) => void;
   updateReserves: (reserves: Reserves) => void;
   closeMonth: () => void;
@@ -336,6 +338,16 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       }));
   }, [currentMonthKey]);
 
+  const deleteMultipleTransactions = useCallback((ids: string[]) => {
+      setMonthlyData(prev => ({
+          ...prev,
+          [currentMonthKey]: {
+              ...prev[currentMonthKey],
+              transactions: prev[currentMonthKey].transactions.filter(t => !ids.includes(t.id))
+          }
+      }));
+  }, [currentMonthKey]);
+
   const clearTransactionsForCurrentMonth = useCallback(() => {
       setMonthlyData(prev => ({
           ...prev,
@@ -345,6 +357,13 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
           }
       }));
   }, [currentMonthKey]);
+
+  const clearAllData = useCallback(() => {
+    const freshState = createInitialState();
+    setMonthlyData(freshState);
+    const today = new Date();
+    setCurrentMonth({ year: today.getFullYear(), month: today.getMonth() + 1 });
+  }, []);
 
 
   const closeMonth = () => {
@@ -401,9 +420,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         const data = monthlyData[monthKey];
         if (!data) return null;
 
-        const { liquidity, transactions, reserves: monthReserves } = data;
+        const { liquidity, transactions, reserves } = data;
         
-        const totalReserves = Object.values(monthReserves).flat().reduce((sum, item) => {
+        const totalReserves = Object.values(reserves).flat().reduce((sum, item) => {
             if (typeof item === 'number') return sum + item;
             if (item && typeof item.amount === 'number') return sum + item.amount;
             return sum;
@@ -440,7 +459,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     addMultipleTransactions,
     updateTransaction,
     deleteTransaction,
+    deleteMultipleTransactions,
     clearTransactionsForCurrentMonth,
+    clearAllData,
     updateLiquidity,
     updateReserves,
     closeMonth,
@@ -464,5 +485,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
-    

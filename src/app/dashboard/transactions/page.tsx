@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, MoreHorizontal, Trash2, Edit, Trash } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Trash2, Edit, Trash, ChevronDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -48,11 +48,13 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useFinancials, Transaction } from '@/hooks/use-financials';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type TransactionFormData = Omit<Transaction, 'id'>;
 
@@ -60,13 +62,16 @@ export default function TransactionsPage() {
     const [open, setOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-
+    const [selectedRows, setSelectedRows] = useState<string[]>([]);
+    
     const { 
         currentMonthData, 
         addTransaction, 
         updateTransaction,
         deleteTransaction,
+        deleteMultipleTransactions,
         clearTransactionsForCurrentMonth,
+        clearAllData,
         currentMonth,
         setCurrentMonth,
         availableMonths,
@@ -84,6 +89,14 @@ export default function TransactionsPage() {
     };
     const [transactionForm, setTransactionForm] = useState<TransactionFormData>(emptyTransaction);
     
+    const sortedTransactions = useMemo(() => {
+        return [...currentMonthData.transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [currentMonthData.transactions]);
+
+    useEffect(() => {
+        setSelectedRows([]);
+    }, [currentMonth]);
+
     useEffect(() => {
         if (open) {
             if (isEditing && editingTransaction) {
@@ -154,12 +167,41 @@ export default function TransactionsPage() {
         });
     }
 
-    const handleClearAll = () => {
+    const handleClearMonth = () => {
         clearTransactionsForCurrentMonth();
          toast({
             title: "Transactions Cleared",
             description: `All transactions for ${format(new Date(currentMonthData.month), "MMMM yyyy")} have been deleted.`,
         });
+    }
+
+    const handleClearAllData = () => {
+        clearAllData();
+        toast({
+            title: "All Data Cleared",
+            description: "All financial data has been reset to its initial state."
+        });
+    }
+    
+    const handleDeleteSelected = () => {
+        deleteMultipleTransactions(selectedRows);
+        toast({
+            title: "Transactions Deleted",
+            description: `${selectedRows.length} transactions have been removed.`,
+        });
+        setSelectedRows([]);
+    }
+
+    const handleSelectAll = (checked: boolean | 'indeterminate') => {
+        if(checked === true) {
+            setSelectedRows(sortedTransactions.map(t => t.id));
+        } else {
+            setSelectedRows([]);
+        }
+    }
+
+    const handleRowSelect = (id: string) => {
+        setSelectedRows(prev => prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]);
     }
 
     const handleMonthChange = (value: string) => {
@@ -194,28 +236,52 @@ export default function TransactionsPage() {
                         </SelectContent>
                     </Select>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="gap-1" disabled={currentMonthData.transactions.length === 0}>
-                            <Trash className="h-4 w-4" />
-                            Clear All
+                    {selectedRows.length > 0 ? (
+                         <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                            <Trash className="h-4 w-4 mr-2" />
+                            Delete ({selectedRows.length})
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all 
-                             <span className="font-bold"> {currentMonthData.transactions.length} </span> 
-                            transactions for <span className="font-bold">{format(new Date(currentMonthData.month), "MMMM yyyy")}</span>.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleClearAll}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    ) : (
+                        <AlertDialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="destructive" size="sm" className="gap-1" disabled={currentMonthData.transactions.length === 0}>
+                                    <Trash className="h-4 w-4" />
+                                    <span>Clear</span>
+                                    <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Clear Options</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <AlertDialogTrigger asChild>
+                                     <DropdownMenuItem>
+                                        Clear This Month
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                                        Clear All Data
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                             <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete transactions.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearMonth}>Clear This Month</AlertDialogAction>
+                                 <AlertDialogAction className="bg-red-700 hover:bg-red-800" onClick={handleClearAllData}>Clear All Data</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+                    )}
 
                     <Button size="sm" className="gap-1" onClick={() => handleOpenDialog()}>
                         <PlusCircle className="h-4 w-4" />
@@ -227,6 +293,12 @@ export default function TransactionsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[50px]">
+                                <Checkbox 
+                                    checked={selectedRows.length === sortedTransactions.length && sortedTransactions.length > 0 ? true : (selectedRows.length > 0 ? 'indeterminate' : false)}
+                                    onCheckedChange={handleSelectAll}
+                                />
+                            </TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Category</TableHead>
@@ -237,9 +309,15 @@ export default function TransactionsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {currentMonthData.transactions.length > 0 ? (
-                            currentMonthData.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((transaction) => (
-                                <TableRow key={transaction.id}>
+                        {sortedTransactions.length > 0 ? (
+                            sortedTransactions.map((transaction) => (
+                                <TableRow key={transaction.id} data-state={selectedRows.includes(transaction.id) && "selected"}>
+                                    <TableCell>
+                                        <Checkbox 
+                                            checked={selectedRows.includes(transaction.id)}
+                                            onCheckedChange={() => handleRowSelect(transaction.id)}
+                                        />
+                                    </TableCell>
                                     <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                                     <TableCell className="font-medium">{transaction.description}</TableCell>
                                     <TableCell>{transaction.category}</TableCell>
@@ -275,7 +353,7 @@ export default function TransactionsPage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={8} className="h-24 text-center">
                                     No transactions for this month yet.
                                 </TableCell>
                             </TableRow>
