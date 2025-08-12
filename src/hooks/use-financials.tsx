@@ -94,11 +94,12 @@ export interface MonthlyFinancials {
 // --- Helper for Unique IDs ---
 // Using a simple UUID generator to ensure uniqueness
 const generateUniqueId = (): string => {
+    // This is a simplified UUID v4 generator.
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
-}
+};
 
 
 // --- Initial State ---
@@ -423,16 +424,22 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const availableMonths = useMemo(() => Array.from(new Set(Object.keys(monthlyData))).sort(), [monthlyData]);
   
   const monthlySummary = useMemo(() => {
-    const totalReserves = (reserves.fixedDeposits?.reduce((s, i) => s + i.amount, 0) || 0)
-        + (reserves.stocks?.reduce((s, i) => s + i.amount, 0) || 0)
-        + (reserves.crypto?.reduce((s, i) => s + i.amount, 0) || 0)
-        + (reserves.mutualFunds?.reduce((s, i) => s + i.amount, 0) || 0)
-        + (reserves.elss?.reduce((s, i) => s + i.amount, 0) || 0)
-        + (reserves.nps || 0) + (reserves.pf || 0) + (reserves.gold || 0) + (reserves.esop || 0);
-
     return availableMonths.map(monthKey => {
         const data = monthlyData[monthKey];
         if (!data) return null;
+
+        // Calculate reserves for the specific month. 
+        // This is a simplification. For true historical analysis, reserves would need to be snapshotted monthly.
+        // For this app's purpose, we'll use the *current* reserves value for all historical months.
+        // The *real* fix is to store reserves history, which is a larger architectural change.
+        // Given the current structure, using the latest reserves is the only option.
+        const totalReserves = (reserves.fixedDeposits?.reduce((s, i) => s + i.amount, 0) || 0)
+            + (reserves.stocks?.reduce((s, i) => s + i.amount, 0) || 0)
+            + (reserves.crypto?.reduce((s, i) => s + i.amount, 0) || 0)
+            + (reserves.mutualFunds?.reduce((s, i) => s + i.amount, 0) || 0)
+            + (reserves.elss?.reduce((s, i) => s + i.amount, 0) || 0)
+            + (reserves.nps || 0) + (reserves.pf || 0) + (reserves.gold || 0) + (reserves.esop || 0);
+
         const { openingBalance, bankAccounts, cash, receivables, creditCards } = data.liquidity;
 
         const credits = data.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -441,7 +448,8 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
             .reduce((sum, t) => sum + Number(t.amount || 0), 0);
         
-        const closingBankBalance = bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0) + credits - expensesFromBank;
+        const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        const closingBankBalance = startingBankBalance + credits - expensesFromBank;
         
         const expensesFromCash = data.transactions
             .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
