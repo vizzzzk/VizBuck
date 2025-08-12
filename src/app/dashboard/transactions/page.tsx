@@ -41,6 +41,7 @@ import {
 import { useFinancials, Transaction } from '@/hooks/use-financials';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 type TransactionFormData = Omit<Transaction, 'id'>;
 
@@ -64,6 +65,7 @@ export default function TransactionsPage() {
         category: '',
         amount: 0,
         paymentMethod: 'Cash',
+        type: 'DR',
     };
     const [transactionForm, setTransactionForm] = useState<TransactionFormData>(emptyTransaction);
     
@@ -76,6 +78,7 @@ export default function TransactionsPage() {
                      category: editingTransaction.category,
                      amount: editingTransaction.amount,
                      paymentMethod: editingTransaction.paymentMethod,
+                     type: editingTransaction.type,
                 });
             } else {
                 setTransactionForm(emptyTransaction);
@@ -157,6 +160,7 @@ export default function TransactionsPage() {
                             <TableHead>Description</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Payment Method</TableHead>
+                            <TableHead>Type</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead><span className="sr-only">Actions</span></TableHead>
                         </TableRow>
@@ -169,6 +173,11 @@ export default function TransactionsPage() {
                                     <TableCell className="font-medium">{transaction.description}</TableCell>
                                     <TableCell>{transaction.category}</TableCell>
                                     <TableCell>{transaction.paymentMethod}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={transaction.type === 'DR' ? 'destructive' : 'default'} className="bg-opacity-20 text-opacity-100">
+                                            {transaction.type}
+                                        </Badge>
+                                    </TableCell>
                                     <TableCell className="text-right">₹{transaction.amount.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
@@ -195,7 +204,7 @@ export default function TransactionsPage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No transactions for this month yet.
                                 </TableCell>
                             </TableRow>
@@ -246,7 +255,20 @@ export default function TransactionsPage() {
                                         <SelectItem value="travel">Travel</SelectItem>
                                         <SelectItem value="utilities">Utilities</SelectItem>
                                         <SelectItem value="entertainment">Entertainment</SelectItem>
+                                        <SelectItem value="salary">Salary</SelectItem>
                                         <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="type" className="text-right">Type</Label>
+                                <Select value={transactionForm.type} onValueChange={(value) => setTransactionForm({...transactionForm, type: value as 'CR' | 'DR'})}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="DR">Debit (DR)</SelectItem>
+                                        <SelectItem value="CR">Credit (CR)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

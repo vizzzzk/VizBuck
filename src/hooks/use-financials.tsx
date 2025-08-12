@@ -82,6 +82,7 @@ export interface Transaction {
     category: string;
     amount: number;
     paymentMethod: string; // e.g., 'Cash', 'HDFC Bank'
+    type: 'CR' | 'DR';
 }
 
 export interface MonthlyFinancials {
@@ -130,6 +131,7 @@ interface FinancialsContextType {
   setCurrentMonth: React.Dispatch<React.SetStateAction<{ year: number, month: number }>>;
   currentMonthData: MonthlyFinancials;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  addMultipleTransactions: (transactions: Omit<Transaction, 'id'>[]) => void;
   updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: number) => void;
   updateLiquidity: (liquidity: Liquidity) => void;
@@ -206,12 +208,18 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
       if (lastMonthData) {
         const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
-        const expensesFromBank = lastMonthData.transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        const expensesFromCash = lastMonthData.transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
         
+        const debits = lastMonthData.transactions
+            .filter(t => t.type === 'DR')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const credits = lastMonthData.transactions
+            .filter(t => t.type === 'CR')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
         const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-        const closingBankBalance = startingBankBalance - expensesFromBank;
-        const closingCash = cash - expensesFromCash;
+        const closingBankBalance = startingBankBalance + credits - debits;
+
+        const closingCash = cash; // Assuming cash expenses are tracked separately or reflected in bank
         
         const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
         const liquidAssets = closingBankBalance + closingCash + totalReceivables;
@@ -221,7 +229,6 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         newBankAccounts = bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [];
         newCash = closingCash;
       } else {
-        // This is the very first month ever, don't calculate based on previous.
         const firstMonthData = monthlyData[Object.keys(monthlyData).sort()[0]];
         if (firstMonthData) {
            newBankAccounts = firstMonthData.liquidity.bankAccounts.map(acc => ({...acc}));
@@ -235,7 +242,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
           openingBalance,
           bankAccounts: newBankAccounts,
           cash: newCash,
-          creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc})) || [],
+          creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc, due: 0})) || [],
           receivables: [],
         },
         transactions: [],
@@ -282,6 +289,17 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       }
     }));
   };
+  
+  const addMultipleTransactions = (transactions: Omit<Transaction, 'id'>[]) => {
+      const newTransactions = transactions.map(t => ({...t, id: Date.now() + Math.random() * Math.random()}));
+       setMonthlyData(prev => ({
+          ...prev,
+          [currentMonthKey]: {
+              ...prev[currentMonthKey],
+              transactions: [...prev[currentMonthKey].transactions, ...newTransactions]
+          }
+      }));
+  };
 
   const updateTransaction = (transaction: Transaction) => {
       setMonthlyData(prev => ({
@@ -308,12 +326,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     const { liquidity, transactions } = currentMonthData;
     const { bankAccounts, cash, receivables, creditCards } = liquidity;
 
-    const expensesFromBank = transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const expensesFromCash = transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const debits = transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const credits = transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
       
     const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const closingBankBalance = startingBankBalance - expensesFromBank;
-    const closingCash = cash - expensesFromCash;
+    const closingBankBalance = startingBankBalance + credits - debits;
+    const closingCash = cash; // Modify if cash transactions are handled differently
     
     const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
     const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
@@ -372,11 +390,11 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         const totalReceivables = receivables.reduce((s, i) => s + i.amount, 0);
         const totalDues = creditCards.reduce((s,i) => s + i.due, 0);
 
-        const expensesFromBank = data.transactions.filter(t => t.paymentMethod !== 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        const expensesFromCash = data.transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const debits = data.transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const credits = data.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
       
-        const closingBankBalance = totalBank - expensesFromBank;
-        const closingCash = cash - expensesFromCash;
+        const closingBankBalance = totalBank + credits - debits;
+        const closingCash = cash;
 
         const liquidity = closingBankBalance + closingCash + totalReceivables;
         const netWorth = (liquidity - totalDues) + totalReserves;
@@ -398,6 +416,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     setCurrentMonth,
     currentMonthData,
     addTransaction,
+    addMultipleTransactions,
     updateTransaction,
     deleteTransaction,
     updateLiquidity,

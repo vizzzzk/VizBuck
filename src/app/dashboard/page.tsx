@@ -28,7 +28,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { Pie, PieChart, Cell } from "recharts";
 import {
   Select,
   SelectContent,
@@ -67,7 +67,6 @@ export default function DashboardPage() {
     setCurrentMonth,
     availableMonths,
     closeMonth,
-    monthlySummary
   } = useFinancials();
 
   // --- Dynamic Form State ---
@@ -143,15 +142,8 @@ export default function DashboardPage() {
 
   // --- Calculations ---
   const { 
-    totalBankBalance, 
     totalCreditCardDues,
     totalReceivables,
-    totalCash,
-    totalLiquidAssets,
-    totalExpenses,
-    totalFixedDeposits,
-    totalStocks,
-    totalCrypto,
     totalReserves,
     openingBalance,
     closingBalance,
@@ -180,34 +172,33 @@ export default function DashboardPage() {
 
     
     const openingBalance = liquidity.openingBalance;
+    
+    const debits = transactions
+      .filter(t => t.type === 'DR')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      
+    const credits = transactions
+      .filter(t => t.type === 'CR')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
     const expensesFromBank = transactions
-      .filter(t => t.paymentMethod !== 'Cash')
+      .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
     
     const expensesFromCash = transactions
-      .filter(t => t.paymentMethod === 'Cash')
+      .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
       
-    const closingBankBalance = totalBankBalance - expensesFromBank;
+    const closingBankBalance = totalBankBalance + credits - expensesFromBank;
     const closingCash = totalCash - expensesFromCash;
     const totalLiquidAssets = closingBankBalance + closingCash + totalReceivables;
     
     const closingBalance = totalLiquidAssets - totalCreditCardDues;
     const netWorth = closingBalance + totalReserves;
     
-    const totalExpenses = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    
     return {
-        totalBankBalance,
         totalCreditCardDues,
         totalReceivables,
-        totalCash,
-        totalLiquidAssets,
-        totalExpenses,
-        totalFixedDeposits,
-        totalStocks,
-        totalCrypto,
         totalReserves,
         openingBalance,
         closingBalance,
@@ -585,5 +576,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

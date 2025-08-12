@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -6,19 +7,37 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, File, Loader } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { extractTransactionsFromStatement } from '@/ai/flows/extract-transactions';
+import { useFinancials } from '@/hooks/use-financials';
 
 export default function ImportPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
+    const { addMultipleTransactions } = useFinancials();
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             const file = event.target.files[0];
-            // You can add file type/size validation here
-            setSelectedFile(file);
+            if (file.type === 'application/pdf' && file.size < 5 * 1024 * 1024) {
+                 setSelectedFile(file);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Invalid File",
+                    description: "Please upload a PDF file smaller than 5MB.",
+                });
+                setSelectedFile(null);
+            }
         }
     };
+    
+    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
 
     const handleUpload = async () => {
         if (!selectedFile) {
@@ -32,15 +51,38 @@ export default function ImportPage() {
 
         setIsUploading(true);
 
-        // Simulate upload process
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        setIsUploading(false);
-        toast({
-            title: "Upload Successful",
-            description: `File "${selectedFile.name}" has been uploaded and is being processed.`,
-        });
-        setSelectedFile(null);
+        try {
+            const dataUri = await toBase64(selectedFile);
+            
+            const result = await extractTransactionsFromStatement({ 
+                statementDataUri: dataUri 
+            });
+
+            if (result && result.transactions.length > 0) {
+                addMultipleTransactions(result.transactions);
+                toast({
+                    title: "Import Successful",
+                    description: `${result.transactions.length} transactions have been imported.`,
+                });
+            } else {
+                 toast({
+                    variant: "destructive",
+                    title: "Import Failed",
+                    description: "Could not extract any transactions from the statement.",
+                });
+            }
+
+        } catch (error) {
+            console.error(error);
+            toast({
+                variant: "destructive",
+                title: "Upload Error",
+                description: "An error occurred while processing the statement.",
+            });
+        } finally {
+            setIsUploading(false);
+            setSelectedFile(null);
+        }
     };
 
 
@@ -49,7 +91,7 @@ export default function ImportPage() {
             <CardHeader>
                 <CardTitle>Import Bank Statement</CardTitle>
                 <CardDescription>
-                    Upload your bank statement in PDF or CSV format to automatically analyze your transactions.
+                    Upload your bank statement in PDF format to automatically analyze your transactions.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -58,9 +100,9 @@ export default function ImportPage() {
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloud className="w-10 h-10 mb-4 text-muted-foreground" />
                             <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                            <p className="text-xs text-muted-foreground">PDF or CSV (MAX. 5MB)</p>
+                            <p className="text-xs text-muted-foreground">PDF (MAX. 5MB)</p>
                         </div>
-                        <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.csv" />
+                        <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} accept=".pdf" />
                     </label>
                 </div>
 
@@ -78,7 +120,7 @@ export default function ImportPage() {
                     {isUploading ? (
                         <>
                             <Loader className="w-4 h-4 mr-2 animate-spin" />
-                            Uploading...
+                            Uploading and Analyzing...
                         </>
                     ) : (
                         "Upload and Analyze"
