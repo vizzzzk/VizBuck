@@ -103,15 +103,15 @@ export default function DashboardPage() {
      const value = name === 'balance' || name === 'due' || name === 'amount' ? Number(rawValue) : rawValue;
 
 
-     const setState = (setter: React.Dispatch<React.SetStateAction<any>>) => {
-        setter((prev: any) => ({
-            ...prev,
-            [field]: (prev[field] as any[]).map(item => item.id === id ? {...item, [name]: value} : item)
-        }))
+     const updateState = (prevState: any) => {
+        return {
+            ...prevState,
+            [field]: (prevState[field] as any[]).map(item => item.id === id ? {...item, [name]: value} : item)
+        }
      }
 
-     if(section === 'liquidity') setFormLiquidity(setFormLiquidity);
-     else if (section === 'reserves') setFormReserves(setFormReserves);
+     if(section === 'liquidity') setFormLiquidity(updateState);
+     else if (section === 'reserves') setFormReserves(updateState);
   }
 
   const handleDateChange = (id: number, date: Date | undefined) => {
