@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
@@ -59,6 +60,7 @@ export interface Transaction {
     description: string;
     category: string;
     amount: number;
+    paymentMethod: string; // e.g., 'Cash', 'HDFC Bank'
 }
 
 
@@ -102,47 +104,30 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   // Load from localStorage on initial render
   useEffect(() => {
-    try {
-      const storedLiquidity = localStorage.getItem('financials-liquidity');
-      if (storedLiquidity) {
-        const parsedLiquidity = JSON.parse(storedLiquidity);
-        // Dates need to be rehydrated
-        parsedLiquidity.receivables = parsedLiquidity.receivables.map((r: any) => ({...r, date: new Date(r.date)}));
-        setLiquidity(parsedLiquidity);
-      }
-      
-      const storedReserves = localStorage.getItem('financials-reserves');
-      if (storedReserves) {
-        setReserves(JSON.parse(storedReserves));
-      }
-
-      const storedTransactions = localStorage.getItem('financials-transactions');
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions));
-      }
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
-    } finally {
-        setIsDataLoaded(true);
-    }
+    // This is a placeholder for potential async data loading in the future
+    setIsDataLoaded(true);
   }, []);
 
-  // Save to localStorage whenever data changes
-  useEffect(() => {
-    if(isDataLoaded) {
-      try {
-        localStorage.setItem('financials-liquidity', JSON.stringify(liquidity));
-        localStorage.setItem('financials-reserves', JSON.stringify(reserves));
-        localStorage.setItem('financials-transactions', JSON.stringify(transactions));
-      } catch (error) {
-        console.error("Failed to save data to localStorage", error);
-      }
-    }
-  }, [liquidity, reserves, transactions, isDataLoaded]);
 
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
     const newTransaction = { ...transaction, id: Date.now() };
     setTransactions(prev => [...prev, newTransaction]);
+    
+    // Deduct amount from the correct source
+    setLiquidity(prevLiquidity => {
+        const newLiquidity = {...prevLiquidity};
+        if (transaction.paymentMethod === 'Cash') {
+            newLiquidity.cash -= transaction.amount;
+        } else {
+            const bankAccountIndex = newLiquidity.bankAccounts.findIndex(
+                acc => acc.name === transaction.paymentMethod
+            );
+            if (bankAccountIndex > -1) {
+                newLiquidity.bankAccounts[bankAccountIndex].balance -= transaction.amount;
+            }
+        }
+        return newLiquidity;
+    });
   };
 
   const value = {
@@ -170,3 +155,5 @@ export const useFinancials = () => {
   }
   return context;
 };
+
+    

@@ -145,14 +145,14 @@ export default function DashboardPage() {
     { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
     { name: 'Cash', value: totalCash, fill: "hsl(var(--chart-2))" },
     { name: 'Receivables', value: totalReceivables, fill: "hsl(var(--chart-5))" },
-    { name: 'Credit Card Dues', value: -totalCreditCardDues, fill: "hsl(var(--chart-3))" },
+    { name: 'Credit Card Dues', value: totalCreditCardDues, fill: "hsl(var(--chart-3))" },
   ].filter(item => item.value !== 0);
 
   const reservesData = [
     { name: 'Fixed Deposits', value: totalFixedDeposits, fill: "hsl(var(--chart-1))" },
     { name: 'Stocks', value: totalStocks, fill: "hsl(var(--chart-4))" },
     { name: 'Crypto', value: totalCrypto, fill: "hsl(var(--chart-2))" },
-  ];
+  ].filter(item => item.value !== 0);
 
   const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                                 </div>
                                 
                             </div>
-                            <DialogFooter className="pt-6">
+                            <DialogFooter className="pt-6 border-t mt-4">
                                 <Button type="submit">Save changes</Button>
                             </DialogFooter>
                         </form>
@@ -332,7 +332,7 @@ export default function DashboardPage() {
         </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-card shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
@@ -345,7 +345,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-card shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Opening Balance</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
@@ -355,7 +355,7 @@ export default function DashboardPage() {
              <p className="text-xs text-muted-foreground pt-1">As of start of July</p>
           </CardContent>
         </Card>
-        <Card className="bg-card shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Closing Balance</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
@@ -365,7 +365,7 @@ export default function DashboardPage() {
              <p className="text-xs text-muted-foreground pt-1">After all expenses</p>
           </CardContent>
         </Card>
-        <Card className="bg-card shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reserves</CardTitle>
             <Landmark className="h-4 w-4 text-muted-foreground" />
@@ -378,7 +378,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-5">
-        <Card className="md:col-span-3 bg-card shadow-lg">
+        <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Liquidity Breakdown</CardTitle>
             <CardDescription>
@@ -421,7 +421,7 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
-         <Card className="md:col-span-2 bg-card shadow-lg">
+         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Reserves & Investments</CardTitle>
             <CardDescription>
@@ -451,3 +451,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

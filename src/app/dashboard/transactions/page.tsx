@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -41,16 +42,17 @@ import { useFinancials, Transaction } from '@/hooks/use-financials';
 
 export default function TransactionsPage() {
     const [open, setOpen] = useState(false);
-    const { transactions, addTransaction } = useFinancials();
+    const { transactions, addTransaction, liquidity } = useFinancials();
     const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id'>>({
         date: new Date().toISOString().split('T')[0],
         description: '',
         category: '',
         amount: 0,
+        paymentMethod: 'Cash', // Default payment method
     });
 
     const handleSave = () => {
-        if (!newTransaction.description || !newTransaction.category || newTransaction.amount <= 0) {
+        if (!newTransaction.description || !newTransaction.category || newTransaction.amount <= 0 || !newTransaction.paymentMethod) {
             // Basic validation
             alert("Please fill all fields correctly.");
             return;
@@ -63,8 +65,11 @@ export default function TransactionsPage() {
             description: '',
             category: '',
             amount: 0,
+            paymentMethod: 'Cash',
         });
     }
+
+    const paymentMethods = ['Cash', ...liquidity.bankAccounts.map(acc => acc.name)];
 
     return (
         <Card>
@@ -135,6 +140,19 @@ export default function TransactionsPage() {
                                     onChange={(e) => setNewTransaction({...newTransaction, amount: Number(e.target.value)})}
                                 />
                             </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="paymentMethod" className="text-right">Paid By</Label>
+                                <Select onValueChange={(value) => setNewTransaction({...newTransaction, paymentMethod: value})}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select Payment Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {paymentMethods.map(method => (
+                                            <SelectItem key={method} value={method}>{method}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <DialogFooter>
                             <Button type="submit" onClick={handleSave}>Save Transaction</Button>
@@ -149,6 +167,7 @@ export default function TransactionsPage() {
                             <TableHead>Date</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Category</TableHead>
+                            <TableHead>Payment Method</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead><span className="sr-only">Actions</span></TableHead>
                         </TableRow>
@@ -157,9 +176,10 @@ export default function TransactionsPage() {
                         {transactions.length > 0 ? (
                             transactions.map((transaction) => (
                                 <TableRow key={transaction.id}>
-                                    <TableCell>{transaction.date}</TableCell>
+                                    <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                                     <TableCell className="font-medium">{transaction.description}</TableCell>
                                     <TableCell>{transaction.category}</TableCell>
+                                    <TableCell>{transaction.paymentMethod}</TableCell>
                                     <TableCell className="text-right">₹{transaction.amount.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
@@ -180,7 +200,7 @@ export default function TransactionsPage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={6} className="h-24 text-center">
                                     No transactions yet.
                                 </TableCell>
                             </TableRow>
@@ -191,3 +211,5 @@ export default function TransactionsPage() {
         </Card>
     );
 }
+
+    
