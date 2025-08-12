@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 // --- Type Definitions ---
 export interface BankAccount {
@@ -87,15 +87,58 @@ interface FinancialsContextType {
   setReserves: React.Dispatch<React.SetStateAction<Reserves>>;
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  isDataLoaded: boolean;
 }
 
 const FinancialsContext = createContext<FinancialsContextType | undefined>(undefined);
 
 // --- Provider Component ---
 export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   const [liquidity, setLiquidity] = useState<Liquidity>(initialLiquidity);
   const [reserves, setReserves] = useState<Reserves>(initialReserves);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+
+  // Load from localStorage on initial render
+  useEffect(() => {
+    try {
+      const storedLiquidity = localStorage.getItem('financials-liquidity');
+      if (storedLiquidity) {
+        const parsedLiquidity = JSON.parse(storedLiquidity);
+        // Dates need to be rehydrated
+        parsedLiquidity.receivables = parsedLiquidity.receivables.map((r: any) => ({...r, date: new Date(r.date)}));
+        setLiquidity(parsedLiquidity);
+      }
+      
+      const storedReserves = localStorage.getItem('financials-reserves');
+      if (storedReserves) {
+        setReserves(JSON.parse(storedReserves));
+      }
+
+      const storedTransactions = localStorage.getItem('financials-transactions');
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions));
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+    } finally {
+        setIsDataLoaded(true);
+    }
+  }, []);
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    if(isDataLoaded) {
+      try {
+        localStorage.setItem('financials-liquidity', JSON.stringify(liquidity));
+        localStorage.setItem('financials-reserves', JSON.stringify(reserves));
+        localStorage.setItem('financials-transactions', JSON.stringify(transactions));
+      } catch (error) {
+        console.error("Failed to save data to localStorage", error);
+      }
+    }
+  }, [liquidity, reserves, transactions, isDataLoaded]);
 
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
     const newTransaction = { ...transaction, id: Date.now() };
@@ -109,11 +152,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     setReserves,
     transactions,
     addTransaction,
+    isDataLoaded
   };
 
   return (
     <FinancialsContext.Provider value={value}>
-      {children}
+      {isDataLoaded ? children : null /* or a loading spinner */}
     </FinancialsContext.Provider>
   );
 };

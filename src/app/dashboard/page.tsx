@@ -60,20 +60,21 @@ export default function DashboardPage() {
     reserves, 
     transactions,
     setLiquidity,
-    setReserves 
+    setReserves,
+    isDataLoaded
   } = useFinancials();
 
   // --- Dynamic Form State ---
   const [formLiquidity, setFormLiquidity] = React.useState(liquidity);
   const [formReserves, setFormReserves] = React.useState(reserves);
 
-  // Reset form state when dialog opens
+  // Reset form state when dialog opens or data loads
   React.useEffect(() => {
-    if(open) {
+    if(isDataLoaded) {
       setFormLiquidity(liquidity);
       setFormReserves(reserves);
     }
-  }, [open, liquidity, reserves]);
+  }, [open, liquidity, reserves, isDataLoaded]);
   
   
   const handleAddItem = (section: string, field: string) => {
@@ -104,6 +105,7 @@ export default function DashboardPage() {
 
 
      const updateState = (prevState: any) => {
+        if(!prevState || !prevState[field]) return prevState;
         return {
             ...prevState,
             [field]: (prevState[field] as any[]).map(item => item.id === id ? {...item, [name]: value} : item)
@@ -157,6 +159,11 @@ export default function DashboardPage() {
     setLiquidity(formLiquidity);
     setReserves(formReserves);
     setOpen(false);
+  }
+
+  if (!isDataLoaded) {
+      // You can return a loading spinner here
+      return null;
   }
 
   return (
@@ -250,10 +257,10 @@ export default function DashboardPage() {
                                                     <PopoverTrigger asChild>
                                                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !r.date && "text-muted-foreground")}>
                                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {r.date ? format(r.date, "PPP") : <span>Expected Date</span>}
+                                                            {r.date ? format(new Date(r.date), "PPP") : <span>Expected Date</span>}
                                                         </Button>
                                                     </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={r.date} onSelect={(d) => handleDateChange(r.id, d)} initialFocus/></PopoverContent>
+                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={new Date(r.date)} onSelect={(d) => handleDateChange(r.id, d)} initialFocus/></PopoverContent>
                                                 </Popover>
                                             </div>
                                         ))}
@@ -444,5 +451,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
