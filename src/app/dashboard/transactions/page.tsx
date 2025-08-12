@@ -20,6 +20,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, MoreHorizontal, Trash2, Edit } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Trash2, Edit, Trash } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -55,12 +67,16 @@ export default function TransactionsPage() {
         addTransaction, 
         updateTransaction,
         deleteTransaction,
+        clearTransactionsForCurrentMonth,
+        currentMonth,
+        setCurrentMonth,
+        availableMonths,
         currentMonthData: { liquidity } 
     } = useFinancials();
     const { toast } = useToast();
 
     const emptyTransaction: TransactionFormData = {
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(currentMonth.year, currentMonth.month - 1).toISOString().split('T')[0],
         description: '',
         category: '',
         amount: 0,
@@ -81,10 +97,13 @@ export default function TransactionsPage() {
                      type: editingTransaction.type,
                 });
             } else {
-                setTransactionForm(emptyTransaction);
+                setTransactionForm({
+                    ...emptyTransaction,
+                    date: new Date(currentMonth.year, currentMonth.month - 1).toISOString().split('T')[0]
+                });
             }
         }
-    }, [open, isEditing, editingTransaction, emptyTransaction]);
+    }, [open, isEditing, editingTransaction, currentMonth]);
 
     const handleOpenDialog = (transaction: Transaction | null = null) => {
         if (transaction) {
@@ -136,21 +155,72 @@ export default function TransactionsPage() {
         });
     }
 
+    const handleClearAll = () => {
+        clearTransactionsForCurrentMonth();
+         toast({
+            title: "Transactions Cleared",
+            description: `All transactions for ${format(new Date(currentMonthData.month), "MMMM yyyy")} have been deleted.`,
+        });
+    }
+
+    const handleMonthChange = (value: string) => {
+      const [year, month] = value.split("-");
+      setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
+    };
+
     const paymentMethods = useMemo(() => {
        return ['Cash', ...liquidity.bankAccounts.map(acc => acc.name)];
     }, [liquidity.bankAccounts]);
+    
+    const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
                 <div>
                     <CardTitle>Transactions</CardTitle>
-                    <CardDescription>View and manage your recent expenses for {format(new Date(currentMonthData.month), "MMMM yyyy")}.</CardDescription>
+                    <CardDescription>View and manage your recent expenses.</CardDescription>
                 </div>
-                <Button size="sm" className="gap-1" onClick={() => handleOpenDialog()}>
-                    <PlusCircle className="h-4 w-4" />
-                    Add Expense
-                </Button>
+                <div className="flex items-center gap-2">
+                     <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableMonths.map(m => (
+                              <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="gap-1" disabled={currentMonthData.transactions.length === 0}>
+                            <Trash className="h-4 w-4" />
+                            Clear All
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all 
+                             <span className="font-bold"> {currentMonthData.transactions.length} </span> 
+                            transactions for <span className="font-bold">{format(new Date(currentMonthData.month), "MMMM yyyy")}</span>.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleClearAll}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <Button size="sm" className="gap-1" onClick={() => handleOpenDialog()}>
+                        <PlusCircle className="h-4 w-4" />
+                        Add Expense
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -167,7 +237,7 @@ export default function TransactionsPage() {
                     </TableHeader>
                     <TableBody>
                         {currentMonthData.transactions.length > 0 ? (
-                            currentMonthData.transactions.map((transaction) => (
+                            currentMonthData.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((transaction) => (
                                 <TableRow key={transaction.id}>
                                     <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                                     <TableCell className="font-medium">{transaction.description}</TableCell>
@@ -193,7 +263,7 @@ export default function TransactionsPage() {
                                                 <Edit className="mr-2 h-4 w-4" />
                                                 Edit
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleDelete(transaction.id)}>
+                                            <DropdownMenuItem onClick={() => handleDelete(transaction.id)} className="text-red-500 focus:text-red-500">
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Delete
                                             </DropdownMenuItem>
@@ -306,3 +376,5 @@ export default function TransactionsPage() {
         </Card>
     );
 }
+
+    

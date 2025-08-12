@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
-import { format, addMonths, startOfMonth } from "date-fns";
+import { format, addMonths, startOfMonth, parseISO, getYear, getMonth } from "date-fns";
 import { Loader } from "lucide-react";
 
 // --- Type Definitions ---
@@ -77,7 +77,7 @@ export interface Reserves {
 
 export interface Transaction {
     id: number;
-    date: string;
+    date: string; // YYYY-MM-DD format
     description: string;
     category: string;
     amount: number;
@@ -134,6 +134,7 @@ interface FinancialsContextType {
   addMultipleTransactions: (transactions: Omit<Transaction, 'id'>[]) => void;
   updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: number) => void;
+  clearTransactionsForCurrentMonth: () => void;
   updateLiquidity: (liquidity: Liquidity) => void;
   updateReserves: (reserves: Reserves) => void;
   closeMonth: () => void;
@@ -158,15 +159,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       const savedMonthlyData = localStorage.getItem("monthlyData");
       const savedReserves = localStorage.getItem("reserves");
       
-      if (savedMonthlyData && Object.keys(JSON.parse(savedMonthlyData)).length > 0) {
-          setMonthlyData(JSON.parse(savedMonthlyData));
-      } else {
-          setMonthlyData(createInitialState());
-      }
+      const parsedMonthlyData = savedMonthlyData ? JSON.parse(savedMonthlyData) : {};
+      const finalMonthlyData = Object.keys(parsedMonthlyData).length > 0 ? parsedMonthlyData : createInitialState();
+      setMonthlyData(finalMonthlyData);
 
       if (savedReserves) {
           const parsedReserves = JSON.parse(savedReserves);
-          // Merge with initialReserves to ensure all keys are present
           setReserves({ ...initialReserves, ...parsedReserves });
       } else {
           setReserves(initialReserves);
@@ -196,61 +194,65 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   const currentMonthKey = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1, 1), "yyyy-MM-01"), [currentMonth]);
   
+    const createNewMonthData = useCallback((monthKey: string, openingBalance = 0, lastMonthData: MonthlyFinancials | null = null) => {
+        let newBankAccounts: BankAccount[] = [];
+        let newCash = 0;
+        let newCreditCards: CreditCard[] = [];
+
+        const baseData = lastMonthData || monthlyData[Object.keys(monthlyData).sort()[0]];
+
+        if (baseData) {
+            newBankAccounts = baseData.liquidity.bankAccounts.map(acc => ({ ...acc }));
+            newCash = baseData.liquidity.cash;
+            if(lastMonthData) {
+                // If it's a new month being created from a previous one, reset dues
+                 newCreditCards = baseData.liquidity.creditCards.map(cc => ({...cc, due: 0}));
+            } else {
+                newCreditCards = baseData.liquidity.creditCards.map(cc => ({ ...cc }));
+            }
+        }
+        
+        return {
+            month: monthKey,
+            liquidity: {
+                openingBalance,
+                bankAccounts: newBankAccounts,
+                cash: newCash,
+                creditCards: newCreditCards,
+                receivables: [],
+            },
+            transactions: [],
+        };
+    }, [monthlyData]);
+
+
    // Effect to create new month data if it doesn't exist
   useEffect(() => {
     if (isDataLoaded && !monthlyData[currentMonthKey]) {
-      const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
-      const lastMonthData = monthlyData[lastMonthKey];
+        const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
+        const lastMonthData = monthlyData[lastMonthKey];
+        let openingBalance = 0;
 
-      let openingBalance = 0;
-      let newBankAccounts: BankAccount[] = lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc, balance: acc.balance})) || [];
-      let newCash = lastMonthData?.liquidity.cash || 0;
+        if (lastMonthData) {
+            const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
+            
+            const debits = lastMonthData.transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            const credits = lastMonthData.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-      if (lastMonthData) {
-        const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
-        
-        const debits = lastMonthData.transactions
-            .filter(t => t.type === 'DR')
-            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        const credits = lastMonthData.transactions
-            .filter(t => t.type === 'CR')
-            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-        const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-        const closingBankBalance = startingBankBalance + credits - debits;
-
-        const closingCash = cash; // Assuming cash expenses are tracked separately or reflected in bank
-        
-        const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
-        const liquidAssets = closingBankBalance + closingCash + totalReceivables;
-        const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
-
-        openingBalance = liquidAssets - totalDues;
-        newBankAccounts = bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [];
-        newCash = closingCash;
-      } else {
-        const firstMonthData = monthlyData[Object.keys(monthlyData).sort()[0]];
-        if (firstMonthData) {
-           newBankAccounts = firstMonthData.liquidity.bankAccounts.map(acc => ({...acc}));
-           newCash = firstMonthData.liquidity.cash;
+            const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+            const closingBankBalance = startingBankBalance + credits - debits;
+            const closingCash = cash; // Assuming cash expenses are tracked separately or reflected in bank
+            
+            const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
+            const liquidAssets = closingBankBalance + closingCash + totalReceivables;
+            const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
+            openingBalance = liquidAssets - totalDues;
         }
-      }
 
-      const newMonthData: MonthlyFinancials = {
-        month: currentMonthKey,
-        liquidity: {
-          openingBalance,
-          bankAccounts: newBankAccounts,
-          cash: newCash,
-          creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc, due: 0})) || [],
-          receivables: [],
-        },
-        transactions: [],
-      };
-      
-      setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}));
+        const newMonthData = createNewMonthData(currentMonthKey, openingBalance, lastMonthData);
+        setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}));
     }
-  }, [currentMonthKey, monthlyData, isDataLoaded]);
+  }, [currentMonthKey, monthlyData, isDataLoaded, createNewMonthData]);
 
   const currentMonthData = useMemo(() => {
     return monthlyData[currentMonthKey] || { // Return a default structure if data is not ready yet
@@ -291,15 +293,23 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
-      const newTransactions = transactions.map(t => ({...t, id: Date.now() + Math.random() * Math.random()}));
-       setMonthlyData(prev => ({
-          ...prev,
-          [currentMonthKey]: {
-              ...prev[currentMonthKey],
-              transactions: [...prev[currentMonthKey].transactions, ...newTransactions]
-          }
-      }));
-  }, [currentMonthKey]);
+       const newTransactions = transactions.map(t => ({...t, id: Date.now() + Math.random() * Math.random()}));
+       
+       setMonthlyData(prev => {
+            const newState = {...prev};
+            newTransactions.forEach(t => {
+                const transactionDate = parseISO(t.date);
+                const monthKey = format(startOfMonth(transactionDate), "yyyy-MM-01");
+
+                if (!newState[monthKey]) {
+                    newState[monthKey] = createNewMonthData(monthKey);
+                }
+                newState[monthKey].transactions.push(t);
+            });
+            return newState;
+       });
+
+  }, [createNewMonthData]);
 
   const updateTransaction = useCallback((transaction: Transaction) => {
       setMonthlyData(prev => ({
@@ -317,6 +327,16 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
           [currentMonthKey]: {
               ...prev[currentMonthKey],
               transactions: prev[currentMonthKey].transactions.filter(t => t.id !== id)
+          }
+      }));
+  }, [currentMonthKey]);
+
+  const clearTransactionsForCurrentMonth = useCallback(() => {
+      setMonthlyData(prev => ({
+          ...prev,
+          [currentMonthKey]: {
+              ...prev[currentMonthKey],
+              transactions: []
           }
       }));
   }, [currentMonthKey]);
@@ -419,6 +439,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     addMultipleTransactions,
     updateTransaction,
     deleteTransaction,
+    clearTransactionsForCurrentMonth,
     updateLiquidity,
     updateReserves,
     closeMonth,
@@ -442,3 +463,5 @@ export const useFinancials = () => {
   }
   return context;
 };
+
+    
