@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   Upload,
   Users2,
+  List,
+  Gift,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -27,8 +29,10 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { SheetTitle } from "@/components/ui/sheet";
 
 export default function DashboardLayout({
   children,
@@ -37,6 +41,7 @@ export default function DashboardLayout({
 }) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     if (!user) {
@@ -48,14 +53,32 @@ export default function DashboardLayout({
     await logout();
     router.push("/login");
   };
-  
+
   if (!user) {
-      return null; // or a loading spinner
+    return null; // or a loading spinner
+  }
+
+  const getPageTitle = () => {
+    switch (pathname) {
+      case "/dashboard":
+        return "Dashboard";
+      case "/dashboard/import":
+        return "Import Statement";
+      case "/dashboard/transactions":
+        return "Transactions";
+      case "/dashboard/wishlist":
+        return "Expense Wishlist";
+      default:
+        return "Dashboard";
+    }
   }
 
   return (
     <SidebarProvider>
       <Sidebar>
+         <VisuallyHidden>
+            <SheetTitle>Navigation</SheetTitle>
+          </VisuallyHidden>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <Package2 className="h-6 w-6 text-primary" />
@@ -65,7 +88,7 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
+              <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
                 <Link href="/dashboard">
                   <Home />
                   Dashboard
@@ -73,7 +96,15 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild isActive={pathname === '/dashboard/transactions'}>
+                <Link href="/dashboard/transactions">
+                  <List />
+                  Transactions
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === '/dashboard/import'}>
                 <Link href="/dashboard/import">
                   <Upload />
                   Import Statement
@@ -81,34 +112,34 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="#">
-                  <LineChart />
-                  Analysis
+              <SidebarMenuButton asChild isActive={pathname === '/dashboard/wishlist'}>
+                <Link href="/dashboard/wishlist">
+                  <Gift />
+                  Wishlist
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-           <SidebarMenu>
-             <SidebarMenuItem>
+          <SidebarMenu>
+            <SidebarMenuItem>
               <SidebarMenuButton onClick={handleLogout}>
                 <LogOut />
                 Logout
               </SidebarMenuButton>
-             </SidebarMenuItem>
-           </SidebarMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
-            <h1 className="text-lg font-semibold">Dashboard</h1>
+            <h1 className="text-lg font-semibold">{getPageTitle()}</h1>
           </div>
           <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{user.email}</span>
+            <span className="text-sm text-muted-foreground">{user.email}</span>
           </div>
         </header>
         <main className="flex-1 p-6">{children}</main>
