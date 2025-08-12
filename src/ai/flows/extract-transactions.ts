@@ -107,6 +107,10 @@ const inferType = (desc: string | undefined): 'CR' | 'DR' | undefined => {
 
 function sanitizeTransactions(raw: any[], defaults = { bank: "Unknown Bank" }): Tx[] {
   const cleaned: Tx[] = [];
+  if (!Array.isArray(raw)) {
+      console.warn("sanitizeTransactions received non-array input. Returning empty.", raw);
+      return [];
+  }
 
   raw.forEach((t, idx) => {
     if (!t || typeof t !== 'object') {
@@ -146,15 +150,21 @@ const extractTransactionsFlow = ai.defineFlow(
   async (input) => {
     const {output} = await extractPrompt(input);
     
-    if (!output || !Array.isArray(output.transactions)) {
-      return { transactions: [] };
+    try {
+      if (!output || !Array.isArray(output.transactions)) {
+        return { transactions: [] };
+      }
+
+      // Try to find the bank name from one of the valid transactions to use as a default
+      const bankName = output.transactions.find(t => t.paymentMethod)?.paymentMethod || 'Unknown Bank';
+
+      const sanitizedTransactions = sanitizeTransactions(output.transactions, { bank: bankName });
+      
+      return { transactions: sanitizedTransactions };
+    } catch (error) {
+        console.error("Error during transaction sanitization:", error, "Raw output:", output);
+        // Return empty on any processing error to avoid crashing the client.
+        return { transactions: [] };
     }
-
-    // Try to find the bank name from one of the valid transactions to use as a default
-    const bankName = output.transactions.find(t => t.paymentMethod)?.paymentMethod || 'Unknown Bank';
-
-    const sanitizedTransactions = sanitizeTransactions(output.transactions, { bank: bankName });
-    
-    return { transactions: sanitizedTransactions };
   }
 );
