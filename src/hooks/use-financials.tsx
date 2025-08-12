@@ -76,7 +76,7 @@ export interface Reserves {
 }
 
 export interface Transaction {
-    id: string; // Changed to string for UUID
+    id: string;
     date: string; // YYYY-MM-DD format
     description: string;
     category: string;
@@ -89,12 +89,11 @@ export interface MonthlyFinancials {
     month: string; // YYYY-MM-01 format
     liquidity: Liquidity;
     transactions: Transaction[];
+    openingReserves?: number; // Add opening reserves snapshot
 }
 
 // --- Helper for Unique IDs ---
-// Using a simple UUID generator to ensure uniqueness
 const generateUniqueId = (): string => {
-    // This is a simplified UUID v4 generator.
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -117,6 +116,7 @@ const createInitialState = (): Record<string, MonthlyFinancials> => ({
       receivables: [{ id: 1, source: 'Freelance Project', amount: 70000, date: new Date() }],
     },
     transactions: [],
+    openingReserves: 1375000, // Initial calculation of reserves
   }
 });
 
@@ -176,7 +176,6 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
       if (savedReserves) {
           const parsedReserves = JSON.parse(savedReserves);
-          // Merge saved data with initial state to ensure new fields are present
           setReserves({ ...initialReserves, ...parsedReserves });
       } else {
           setReserves(initialReserves);
@@ -206,7 +205,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   const currentMonthKey = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1, 1), "yyyy-MM-01"), [currentMonth]);
   
-    const createNewMonthData = useCallback((monthKey: string, openingBalance = 0, lastMonthData: MonthlyFinancials | null = null) => {
+    const createNewMonthData = useCallback((monthKey: string, openingBalance = 0, openingReserves = 0, lastMonthData: MonthlyFinancials | null = null) => {
         let newBankAccounts: BankAccount[] = [];
         let newCash = 0;
         let newCreditCards: CreditCard[] = [];
@@ -214,14 +213,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         const baseData = lastMonthData || monthlyData[Object.keys(monthlyData).sort()[0]];
 
         if (baseData) {
-            newBankAccounts = baseData.liquidity.bankAccounts.map(acc => ({ ...acc }));
+            newBankAccounts = baseData.liquidity.bankAccounts.map(acc => ({ ...acc, balance: 0 })); // Balance will be set by closing logic
             newCash = baseData.liquidity.cash;
-            if(lastMonthData) {
-                // If it's a new month being created from a previous one, reset dues
-                 newCreditCards = baseData.liquidity.creditCards.map(cc => ({...cc, due: 0}));
-            } else {
-                newCreditCards = baseData.liquidity.creditCards.map(cc => ({ ...cc }));
-            }
+            newCreditCards = baseData.liquidity.creditCards.map(cc => ({...cc, due: 0}));
         }
         
         return {
@@ -234,6 +228,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
                 receivables: [],
             },
             transactions: [],
+            openingReserves,
         };
     }, [monthlyData]);
 
@@ -244,35 +239,39 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         const lastMonthKey = format(addMonths(new Date(currentMonthKey), -1), "yyyy-MM-01");
         const lastMonthData = monthlyData[lastMonthKey];
         let openingBalance = 0;
+        let openingReserves = 0;
 
         if (lastMonthData) {
-            const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
+             const { bankAccounts, cash, receivables, creditCards } = lastMonthData.liquidity;
             
-            const debits = lastMonthData.transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
             const credits = lastMonthData.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
+            
             const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
             const expensesFromBank = lastMonthData.transactions
               .filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR')
               .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            
             const closingBankBalance = startingBankBalance + credits - expensesFromBank;
+
             const expensesFromCash = lastMonthData.transactions
               .filter(t => t.paymentMethod === 'Cash' && t.type === 'DR')
               .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
             const closingCash = cash - expensesFromCash; 
             
             const totalReceivables = receivables.reduce((sum, r) => sum + r.amount, 0);
             const liquidAssets = closingBankBalance + closingCash + totalReceivables;
             const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
             openingBalance = liquidAssets - totalDues;
+            
+            openingReserves = lastMonthData.openingReserves || 0; // Carry over reserves
+        } else {
+             // For the very first month, calculate from initialReserves
+             openingReserves = Object.values(reserves).flat().reduce((sum, item) => sum + (typeof item === 'number' ? item : item.amount || 0), 0);
         }
 
-        const newMonthData = createNewMonthData(currentMonthKey, openingBalance, lastMonthData);
+        const newMonthData = createNewMonthData(currentMonthKey, openingBalance, openingReserves, lastMonthData);
         setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}));
     }
-  }, [currentMonthKey, monthlyData, isDataLoaded, createNewMonthData]);
+  }, [currentMonthKey, monthlyData, isDataLoaded, createNewMonthData, reserves]);
 
   const currentMonthData = useMemo(() => {
     return monthlyData[currentMonthKey] || { // Return a default structure if data is not ready yet
@@ -285,6 +284,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         receivables: [],
       },
       transactions: [],
+      openingReserves: 0,
     };
   }, [monthlyData, currentMonthKey]);
   
@@ -322,7 +322,10 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
                 const monthKey = format(startOfMonth(transactionDate), "yyyy-MM-01");
 
                 if (!newState[monthKey]) {
-                    newState[monthKey] = createNewMonthData(monthKey);
+                    // If month doesn't exist, we need to create it.
+                    // This part is complex because we don't know the opening balance.
+                    // For now, let's create it with defaults. The user might need to adjust.
+                    newState[monthKey] = createNewMonthData(monthKey, 0, 0, null);
                 }
                 newState[monthKey].transactions.push(t);
             });
@@ -388,6 +391,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     
     const closingBalance = totalClosingLiquidity - totalDues;
 
+    // Calculate total reserves at the end of the closing month
+    const closingReserves = Object.values(reserves).flat().reduce((sum, item) => sum + (typeof item === 'number' ? item : item.amount || 0), 0);
+
     const nextMonthDate = addMonths(new Date(currentMonthKey), 1);
     const nextMonthKey = format(nextMonthDate, "yyyy-MM-01");
 
@@ -398,7 +404,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const nextMonthExists = !!prev[nextMonthKey];
-
+        
         const newNextMonthData = { 
             month: nextMonthKey,
             liquidity: {
@@ -409,6 +415,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
                 receivables: [],
             },
             transactions: nextMonthExists ? prev[nextMonthKey].transactions : [],
+            openingReserves: closingReserves, // Use the calculated closing reserves for the next month's opening
         };
 
         return {
@@ -428,19 +435,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         const data = monthlyData[monthKey];
         if (!data) return null;
 
-        // Calculate reserves for the specific month. 
-        // This is a simplification. For true historical analysis, reserves would need to be snapshotted monthly.
-        // For this app's purpose, we'll use the *current* reserves value for all historical months.
-        // The *real* fix is to store reserves history, which is a larger architectural change.
-        // Given the current structure, using the latest reserves is the only option.
-        const totalReserves = (reserves.fixedDeposits?.reduce((s, i) => s + i.amount, 0) || 0)
-            + (reserves.stocks?.reduce((s, i) => s + i.amount, 0) || 0)
-            + (reserves.crypto?.reduce((s, i) => s + i.amount, 0) || 0)
-            + (reserves.mutualFunds?.reduce((s, i) => s + i.amount, 0) || 0)
-            + (reserves.elss?.reduce((s, i) => s + i.amount, 0) || 0)
-            + (reserves.nps || 0) + (reserves.pf || 0) + (reserves.gold || 0) + (reserves.esop || 0);
+        const totalReserves = data.openingReserves || 0;
 
-        const { openingBalance, bankAccounts, cash, receivables, creditCards } = data.liquidity;
+        const { bankAccounts, cash, receivables, creditCards } = data.liquidity;
 
         const credits = data.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
@@ -470,7 +467,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             netWorth,
         }
     }).filter(Boolean) as { month: string; liquidity: number; reserves: number; netWorth: number }[];
-  }, [monthlyData, reserves, availableMonths]);
+  }, [monthlyData, availableMonths]);
 
 
   const value = {
@@ -507,5 +504,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
-    
