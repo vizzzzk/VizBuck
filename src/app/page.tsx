@@ -68,26 +68,16 @@ export default function FortuneLanding() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
               <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-[#0F1628] to-[#0B1220] p-6 shadow-2xl">
                 <div className="mb-4 flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Executive Insights</span>
+                  <span className="text-sm text-gray-400">Financial Planning & Analysis</span>
                   <Sparkles className="h-4 w-4 text-[#C5A46D]" />
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    { title: "Risk Signals", value: "↓ 37%", sub: "Incidents QoQ" },
-                    { title: "Cycle Time", value: "↘ 28%", sub: "Time-to-decision" },
-                    { title: "Coverage", value: "↑ 4.2x", sub: "Markets monitored" },
-                    { title: "ROI", value: "> 310%", sub: "12-month horizon" },
-                  ].map((kpi, i) => (
-                    <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-sm text-gray-400">{kpi.title}</div>
-                      <div className="mt-1 text-2xl font-semibold text-white">{kpi.value}</div>
-                      <div className="text-xs text-gray-400">{kpi.sub}</div>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <p className="text-gray-300">Visualize your financial future. Track liquidity, manage reserves, and forecast net worth with our enterprise-grade AI platform.</p>
+                   <div className="mt-5 flex items-center gap-2 text-sm text-gray-400">
+                     <LineChart className="h-4 w-4 text-[#C5A46D]"/> Real-time dashboards & alerts
+                   </div>
                 </div>
-                <div className="mt-5 flex items-center gap-2 text-sm text-gray-400">
-                  <LineChart className="h-4 w-4 text-[#C5A46D]"/> Real-time dashboards & alerts
-                </div>
+
               </div>
             </motion.div>
           </div>

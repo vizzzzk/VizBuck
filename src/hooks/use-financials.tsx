@@ -79,7 +79,7 @@ const createInitialState = (): Record<string, MonthlyFinancials> => ({
   [initialMonthKey]: {
     month: initialMonthKey,
     liquidity: {
-      openingBalance: 285000,
+      openingBalance: 0,
       bankAccounts: [{ id: 1, name: 'HDFC Bank', balance: 250000 }],
       cash: 15000,
       creditCards: [{ id: 1, name: 'HDFC Bank', due: 50000 }],
@@ -119,13 +119,19 @@ const FinancialsContext = createContext<FinancialsContextType | undefined>(undef
 export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  const [monthlyData, setMonthlyData] = useState<Record<string, MonthlyFinancials>>(createInitialState());
+  const [monthlyData, setMonthlyData] = useState<Record<string, MonthlyFinancials>>({});
   const [reserves, setReserves] = useState<Reserves>(initialReserves);
   const [currentMonth, setCurrentMonth] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
 
   // Load from localStorage on initial render - DISABLED FOR NOW
   useEffect(() => {
     // This is a placeholder for potential async data loading in the future
+    const initialData = createInitialState();
+    const firstMonthData = initialData[initialMonthKey];
+    const calculatedOpeningBalance = firstMonthData.liquidity.bankAccounts.reduce((sum, acc) => sum + acc.balance, 0) + firstMonthData.liquidity.cash + firstMonthData.liquidity.receivables.reduce((sum, r) => sum + r.amount, 0) - firstMonthData.liquidity.creditCards.reduce((sum, c) => sum + c.due, 0);
+    firstMonthData.liquidity.openingBalance = calculatedOpeningBalance;
+
+    setMonthlyData(initialData);
     setIsDataLoaded(true);
   }, []);
 
@@ -196,9 +202,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const closeMonth = () => {
-    const { openingBalance, bankAccounts, cash } = currentMonthData.liquidity;
+    const { openingBalance, bankAccounts, cash, receivables } = currentMonthData.liquidity;
     const totalExpenses = currentMonthData.transactions.reduce((sum, t) => sum + t.amount, 0);
-    const closingBalance = openingBalance - totalExpenses;
+    const totalBankAndCash = bankAccounts.reduce((s,i) => s + i.balance, 0) + cash;
+
+    const closingBalance = totalBankAndCash + receivables.reduce((s,i) => s+i.amount, 0);
+
 
     const nextMonthDate = addMonths(new Date(currentMonthKey), 1);
     const nextMonthKey = format(nextMonthDate, "yyyy-MM-01");
@@ -210,7 +219,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             liquidity: {
                 openingBalance: closingBalance,
                 bankAccounts: bankAccounts.map(b => ({...b})), // Deep copy
-                cash: closingBalance, // Simplified: closing balance becomes next month's opening cash
+                cash: cash, 
                 creditCards: [],
                 receivables: [],
             },
@@ -271,5 +280,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
-    
