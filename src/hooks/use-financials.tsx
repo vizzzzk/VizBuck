@@ -4,7 +4,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
 import { format, addMonths, startOfMonth, parseISO, isValid } from "date-fns";
 import { Loader } from "lucide-react";
-import { set } from "zod";
 
 // --- Type Definitions ---
 export interface BankAccount {
@@ -300,12 +299,13 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
        setMonthlyData(prev => {
             const newState = {...prev};
+            
             transactions.forEach(t => {
                 if (!t.date) {
                     console.warn("Skipping transaction with no date:", t);
                     return;
                 }
-                const newTransaction = { ...t, id: generateUniqueId() };
+                
                 const transactionDate = parseISO(t.date);
                 
                 if (!isValid(transactionDate)) {
@@ -321,7 +321,19 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
                     // Create with defaults, user might need to adjust.
                     newState[monthKey] = createNewMonthData(monthKey, 0, lastMonthData);
                 }
-                newState[monthKey].transactions.push(newTransaction);
+
+                // De-duplication logic
+                const transactionSignature = `${t.date}|${t.description}|${t.amount}|${t.type}`;
+                const isDuplicate = newState[monthKey].transactions.some(existingTx => 
+                    `${existingTx.date}|${existingTx.description}|${existingTx.amount}|${existingTx.type}` === transactionSignature
+                );
+
+                if (!isDuplicate) {
+                    const newTransaction = { ...t, id: generateUniqueId() };
+                    newState[monthKey].transactions.push(newTransaction);
+                } else {
+                     console.warn("Skipping duplicate transaction:", t);
+                }
             });
             return newState;
        });
