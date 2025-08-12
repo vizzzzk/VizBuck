@@ -9,9 +9,11 @@ import { UploadCloud, File, Loader } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractTransactionsFromStatement } from '@/ai/flows/extract-transactions';
 import { useFinancials } from '@/hooks/use-financials';
+import { Label } from '@/components/ui/label';
 
 export default function ImportPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [statementYear, setStatementYear] = useState(String(new Date().getFullYear()));
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const { addMultipleTransactions } = useFinancials();
@@ -55,7 +57,8 @@ export default function ImportPage() {
             const dataUri = await toBase64(selectedFile);
             
             const result = await extractTransactionsFromStatement({ 
-                statementDataUri: dataUri 
+                statementDataUri: dataUri,
+                statementYear: statementYear, 
             });
 
             if (result && result.transactions.length > 0) {
@@ -95,6 +98,17 @@ export default function ImportPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="statement-year">Statement Year</Label>
+                    <Input 
+                        id="statement-year"
+                        type="number"
+                        placeholder="e.g., 2024"
+                        value={statementYear}
+                        onChange={(e) => setStatementYear(e.target.value)}
+                    />
+                </div>
+            
                 <div className="flex items-center justify-center w-full">
                     <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-accent">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -116,7 +130,7 @@ export default function ImportPage() {
                     </div>
                 )}
                 
-                <Button onClick={handleUpload} disabled={!selectedFile || isUploading} className="w-full">
+                <Button onClick={handleUpload} disabled={!selectedFile || isUploading || !statementYear} className="w-full">
                     {isUploading ? (
                         <>
                             <Loader className="w-4 h-4 mr-2 animate-spin" />

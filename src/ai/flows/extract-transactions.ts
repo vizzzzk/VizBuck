@@ -17,6 +17,7 @@ const StatementInputSchema = z.object({
     .describe(
       "A bank statement PDF file, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."
     ),
+    statementYear: z.string().describe("The year of the bank statement, e.g., '2024'."),
 });
 export type StatementInput = z.infer<typeof StatementInputSchema>;
 
@@ -43,10 +44,10 @@ const extractPrompt = ai.definePrompt({
     name: 'extractTransactionsPrompt',
     input: {schema: StatementInputSchema},
     output: {schema: StatementOutputSchema},
-    prompt: `You are an expert financial analyst AI. Your task is to extract all transactions from the provided bank statement PDF.
+    prompt: `You are an expert financial analyst AI. Your task is to extract all transactions from the provided bank statement PDF for the year {{{statementYear}}}.
 
 Analyze the document carefully and extract the following details for each transaction:
-- Date (in YYYY-MM-DD format)
+- Date (in YYYY-MM-DD format). All dates must be within the provided year: {{{statementYear}}}.
 - Description
 - Amount
 - Type (CR for credit/deposit, DR for debit/withdrawal)
@@ -55,7 +56,7 @@ Based on the transaction description, assign a relevant category. Common categor
 
 For the paymentMethod, use the name of the bank from the statement.
 
-IMPORTANT: Ensure that every single transaction object you return is complete and includes all required fields: date, description, amount, type, category, and paymentMethod. If the type of transaction (CR or DR) is ambiguous from the description, default to 'DR' for debits/withdrawals. Do not skip any transactions, even if their descriptions are unusual or truncated.
+IMPORTANT: Ensure that every single transaction object you return is complete and includes all required fields: date, description, amount, type, category, and paymentMethod. If the type of transaction (CR or DR) is ambiguous from the description, use inference based on keywords. Default to 'DR' for debits/withdrawals if still unclear. Do not skip any transactions, even if their descriptions are unusual or truncated.
 
 Return the data as a structured JSON object.
 
