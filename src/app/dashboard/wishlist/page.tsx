@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -5,31 +6,46 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Edit } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
-const initialWishlist = [
-    { id: 1, name: 'Sony WH-1000XM5 Headphones', price: 29990, saved: 15000, imageUrl: 'https://placehold.co/100x100.png' },
-    { id: 2, name: 'New MacBook Pro', price: 199900, saved: 50000, imageUrl: 'https://placehold.co/100x100.png' },
-    { id: 3, name: 'Goa Trip', price: 45000, saved: 45000, imageUrl: 'https://placehold.co/100x100.png' },
-];
-
+interface WishlistItem {
+    id: number;
+    name: string;
+    price: number;
+    saved: number;
+    imageUrl: string;
+}
 
 export default function WishlistPage() {
-    const [wishlist, setWishlist] = useState(initialWishlist);
+    const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
     const [newItemName, setNewItemName] = useState('');
     const [newItemPrice, setNewItemPrice] = useState('');
+    
+    // State for the editing dialog
+    const [open, setOpen] = useState(false);
+    const [currentItem, setCurrentItem] = useState<WishlistItem | null>(null);
+    const [savedAmount, setSavedAmount] = useState('');
 
     const handleAddItem = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newItemName || !newItemPrice) return;
-        const newItem = {
-            id: wishlist.length + 1,
+        const newItem: WishlistItem = {
+            id: Date.now(),
             name: newItemName,
             price: parseFloat(newItemPrice),
             saved: 0,
-            imageUrl: 'https://placehold.co/100x100.png',
+            imageUrl: 'https://placehold.co/120x120.png',
         };
         setWishlist([...wishlist, newItem]);
         setNewItemName('');
@@ -39,6 +55,24 @@ export default function WishlistPage() {
     const handleRemoveItem = (id: number) => {
         setWishlist(wishlist.filter(item => item.id !== id));
     };
+
+    const handleOpenDialog = (item: WishlistItem) => {
+        setCurrentItem(item);
+        setSavedAmount(item.saved.toString());
+        setOpen(true);
+    };
+    
+    const handleUpdateSavedAmount = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentItem) return;
+        
+        setWishlist(wishlist.map(item => 
+            item.id === currentItem.id ? { ...item, saved: parseFloat(savedAmount) || 0 } : item
+        ));
+        setOpen(false);
+        setCurrentItem(null);
+        setSavedAmount('');
+    }
 
     return (
         <div className="grid gap-6">
@@ -67,6 +101,12 @@ export default function WishlistPage() {
 
             <div className="space-y-4">
                  <h3 className="text-xl font-semibold">Your Wishlist</h3>
+                 {wishlist.length === 0 && (
+                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                        <p className="text-muted-foreground">Your wishlist is empty.</p>
+                        <p className="text-sm text-muted-foreground">Add an item above to start saving!</p>
+                    </div>
+                 )}
                  {wishlist.map(item => {
                     const progress = item.price > 0 ? (item.saved / item.price) * 100 : 100;
                     return (
@@ -90,9 +130,14 @@ export default function WishlistPage() {
                                            <span className="font-bold text-primary">₹{item.saved.toLocaleString('en-IN')}</span> saved of ₹{item.price.toLocaleString('en-IN')}
                                         </p>
                                     </div>
-                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        <Button variant="outline" size="icon" onClick={() => handleOpenDialog(item)}>
+                                            <Edit className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="mt-3">
                                    <Progress value={progress} />
@@ -103,6 +148,31 @@ export default function WishlistPage() {
                     )
                 })}
             </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Update Saved Amount for {currentItem?.name}</DialogTitle>
+                        <DialogDescription>
+                            How much have you saved towards this item so far?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleUpdateSavedAmount}>
+                        <div className="py-4">
+                            <Label htmlFor="saved-amount">Amount Saved (₹)</Label>
+                            <Input 
+                                id="saved-amount" 
+                                type="number" 
+                                value={savedAmount} 
+                                onChange={(e) => setSavedAmount(e.target.value)}
+                                placeholder="e.g., 25000"
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit">Update Savings</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

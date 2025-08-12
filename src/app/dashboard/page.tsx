@@ -39,6 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -238,9 +239,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
+            <div className="flex items-center gap-4">
                 <h1 className="text-3xl font-bold tracking-tight">Financial Overview</h1>
-                <p className="text-muted-foreground">Your financial dashboard for {format(new Date(currentMonth.year, currentMonth.month - 1), "MMMM yyyy")}.</p>
+                 <Badge variant="outline" className="text-base py-1 px-3 bg-muted text-foreground">
+                    {format(new Date(currentMonth.year, currentMonth.month - 1), "MMMM yyyy")}
+                </Badge>
             </div>
             <div className="flex items-center gap-2">
                  <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
