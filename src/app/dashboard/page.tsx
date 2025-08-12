@@ -41,6 +41,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useFinancials } from "@/hooks/use-financials";
+
 
 // Mock data for dropdowns
 const indianBanks = ["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank", "Other"];
@@ -48,28 +50,29 @@ const creditCardIssuers = ["HDFC Bank", "ICICI Bank", "SBI Card", "Axis Bank", "
 const stockBrokers = ["Zerodha", "Upstox", "Groww", "ICICI Direct", "HDFC Securities", "Other"];
 const cryptoExchanges = ["WazirX", "CoinDCX", "CoinSwitch Kuber", "Binance", "Other"];
 
-// Initial empty state structure
-const initialLiquidity = {
-    bankAccounts: [{ id: 1, name: 'HDFC Bank', balance: 250000 }],
-    cash: 15000,
-    creditCards: [{ id: 1, name: 'HDFC Bank', due: 50000 }],
-    receivables: [{ id: 1, source: 'Freelance Project', amount: 20000, date: new Date() }],
-};
-
-const initialReserves = {
-    fixedDeposits: [{id: 1, institution: 'HDFC Bank', amount: 500000}],
-    stocks: [{id: 1, broker: 'Zerodha', amount: 750000}],
-    crypto: [{id: 1, exchange: 'WazirX', amount: 125000}],
-};
 
 export default function DashboardPage() {
   const [open, setOpen] = useState(false);
-  const [liquidity, setLiquidity] = useState(initialLiquidity);
-  const [reserves, setReserves] = useState(initialReserves);
+  const { 
+    liquidity, 
+    reserves, 
+    transactions,
+    setLiquidity,
+    setReserves 
+  } = useFinancials();
 
   // --- Dynamic Form State ---
-  const [formLiquidity, setFormLiquidity] = useState(initialLiquidity);
-  const [formReserves, setFormReserves] = useState(initialReserves);
+  const [formLiquidity, setFormLiquidity] = useState(liquidity);
+  const [formReserves, setFormReserves] = useState(reserves);
+
+  // Reset form state when dialog opens
+  React.useEffect(() => {
+    if(open) {
+      setFormLiquidity(liquidity);
+      setFormReserves(reserves);
+    }
+  }, [open, liquidity, reserves]);
+  
   
   const handleAddItem = (section: string, field: string) => {
     const newId = Date.now();
@@ -123,6 +126,7 @@ export default function DashboardPage() {
   const totalReceivables = useMemo(() => liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0), [liquidity.receivables]);
   const totalCash = useMemo(() => Number(liquidity.cash || 0), [liquidity.cash]);
   const totalLiquidAssets = useMemo(() => totalBankBalance + totalCash + totalReceivables, [totalBankBalance, totalCash, totalReceivables]);
+  const totalExpenses = useMemo(() => transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0), [transactions]);
   
   const totalFixedDeposits = useMemo(() => reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0), [reserves.fixedDeposits]);
   const totalStocks = useMemo(() => reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0), [reserves.stocks]);
@@ -130,6 +134,7 @@ export default function DashboardPage() {
   const totalReserves = useMemo(() => totalFixedDeposits + totalStocks + totalCrypto, [totalFixedDeposits, totalStocks, totalCrypto]);
 
   const openingBalance = useMemo(() => totalLiquidAssets - totalCreditCardDues, [totalLiquidAssets, totalCreditCardDues]);
+  const closingBalance = useMemo(() => openingBalance - totalExpenses, [openingBalance, totalExpenses]);
   const netWorth = useMemo(() => totalLiquidAssets + totalReserves - totalCreditCardDues, [totalLiquidAssets, totalReserves, totalCreditCardDues]);
   
   const liquidityData = [
@@ -317,7 +322,7 @@ export default function DashboardPage() {
             </div>
         </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
@@ -333,12 +338,22 @@ export default function DashboardPage() {
         </Card>
         <Card className="bg-card shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Liquidity</CardTitle>
+            <CardTitle className="text-sm font-medium">Opening Balance</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
              <p className="text-xs text-muted-foreground pt-1">As of start of July</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Closing Balance</CardTitle>
+            <Banknote className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground pt-1">After all expenses</p>
           </CardContent>
         </Card>
         <Card className="bg-card shadow-lg">

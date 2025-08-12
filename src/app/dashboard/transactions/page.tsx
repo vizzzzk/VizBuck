@@ -37,17 +37,34 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const transactionsData = [
-    { id: 1, date: '2024-07-25', description: 'Zomato Order', category: 'Food & Dining', amount: 450.75 },
-    { id: 2, date: '2024-07-25', description: 'Amazon Purchase', category: 'Shopping', amount: 1250.00 },
-    { id: 3, date: '2024-07-24', description: 'Electricity Bill', category: 'Utilities', amount: 2100.00 },
-    { id: 4, date: '2024-07-23', description: 'Uber Ride', category: 'Travel', amount: 280.50 },
-    { id: 5, date: '2024-07-22', description: 'Myntra', category: 'Shopping', amount: 3500.00 },
-];
+import { useFinancials, Transaction } from '@/hooks/use-financials';
 
 export default function TransactionsPage() {
     const [open, setOpen] = useState(false);
+    const { transactions, addTransaction } = useFinancials();
+    const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id'>>({
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        category: '',
+        amount: 0,
+    });
+
+    const handleSave = () => {
+        if (!newTransaction.description || !newTransaction.category || newTransaction.amount <= 0) {
+            // Basic validation
+            alert("Please fill all fields correctly.");
+            return;
+        }
+        addTransaction(newTransaction);
+        setOpen(false);
+        // Reset form
+        setNewTransaction({
+            date: new Date().toISOString().split('T')[0],
+            description: '',
+            category: '',
+            amount: 0,
+        });
+    }
 
     return (
         <Card>
@@ -73,15 +90,27 @@ export default function TransactionsPage() {
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="date" className="text-right">Date</Label>
-                                <Input id="date" type="date" className="col-span-3" defaultValue={new Date().toISOString().split('T')[0]} />
+                                <Input 
+                                    id="date" 
+                                    type="date" 
+                                    className="col-span-3" 
+                                    value={newTransaction.date}
+                                    onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
+                                />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="description" className="text-right">Description</Label>
-                                <Input id="description" placeholder="e.g., Coffee with friends" className="col-span-3" />
+                                <Input 
+                                    id="description" 
+                                    placeholder="e.g., Coffee with friends" 
+                                    className="col-span-3"
+                                    value={newTransaction.description} 
+                                    onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
+                                />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="category" className="text-right">Category</Label>
-                                <Select>
+                                <Select onValueChange={(value) => setNewTransaction({...newTransaction, category: value})}>
                                     <SelectTrigger className="col-span-3">
                                         <SelectValue placeholder="Select a category" />
                                     </SelectTrigger>
@@ -97,11 +126,18 @@ export default function TransactionsPage() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="amount" className="text-right">Amount</Label>
-                                <Input id="amount" type="number" placeholder="e.g., 500.00" className="col-span-3" />
+                                <Input 
+                                    id="amount" 
+                                    type="number" 
+                                    placeholder="e.g., 500.00" 
+                                    className="col-span-3" 
+                                    value={newTransaction.amount || ''}
+                                    onChange={(e) => setNewTransaction({...newTransaction, amount: Number(e.target.value)})}
+                                />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button type="submit" onClick={() => setOpen(false)}>Save Transaction</Button>
+                            <Button type="submit" onClick={handleSave}>Save Transaction</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -118,29 +154,37 @@ export default function TransactionsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactionsData.map((transaction) => (
-                            <TableRow key={transaction.id}>
-                                <TableCell>{transaction.date}</TableCell>
-                                <TableCell className="font-medium">{transaction.description}</TableCell>
-                                <TableCell>{transaction.category}</TableCell>
-                                <TableCell className="text-right">₹{transaction.amount.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">
-                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                            <span className="sr-only">Toggle menu</span>
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                                        <DropdownMenuItem>Delete</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                        {transactions.length > 0 ? (
+                            transactions.map((transaction) => (
+                                <TableRow key={transaction.id}>
+                                    <TableCell>{transaction.date}</TableCell>
+                                    <TableCell className="font-medium">{transaction.description}</TableCell>
+                                    <TableCell>{transaction.category}</TableCell>
+                                    <TableCell className="text-right">₹{transaction.amount.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                                <span className="sr-only">Toggle menu</span>
+                                            </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem>Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No transactions yet.
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
