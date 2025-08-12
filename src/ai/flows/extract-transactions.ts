@@ -72,11 +72,24 @@ const extractTransactionsFlow = ai.defineFlow(
   async (input) => {
     const {output} = await extractPrompt(input);
     
-    // Ensure output is not null, and if it is, return an empty array
-    if (!output) {
+    if (!output || !output.transactions) {
       return { transactions: [] };
     }
+
+    // Sanitize the output to remove any incomplete transactions
+    const requiredKeys: (keyof z.infer<typeof TransactionSchema>)[] = [
+      'date',
+      'description',
+      'amount',
+      'type',
+      'category',
+      'paymentMethod',
+    ];
+
+    const sanitizedTransactions = output.transactions.filter(tx => {
+      return requiredKeys.every(key => tx[key] !== undefined && tx[key] !== null && tx[key] !== '');
+    });
     
-    return output;
+    return { transactions: sanitizedTransactions };
   }
 );
