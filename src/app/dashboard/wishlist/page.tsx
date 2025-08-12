@@ -1,23 +1,15 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2, Edit } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Save, X, Sparkles, Loader } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Image from 'next/image';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { getWishlistImage } from '@/ai/flows/get-wishlist-image';
 
 interface WishlistItem {
     id: number;
@@ -25,6 +17,7 @@ interface WishlistItem {
     price: number;
     saved: number;
     imageUrl: string;
+    imageHint: string;
 }
 
 export default function WishlistPage() {
@@ -32,46 +25,59 @@ export default function WishlistPage() {
     const [newItemName, setNewItemName] = useState('');
     const [newItemPrice, setNewItemPrice] = useState('');
     
-    // State for the editing dialog
-    const [open, setOpen] = useState(false);
-    const [currentItem, setCurrentItem] = useState<WishlistItem | null>(null);
-    const [savedAmount, setSavedAmount] = useState('');
+    // State for inline editing
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingSaved, setEditingSaved] = useState<string>('');
+    const [isImageLoading, setIsImageLoading] = useState<number | null>(null);
 
-    const handleAddItem = (e: React.FormEvent) => {
+
+    const handleAddItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newItemName || !newItemPrice) return;
+        const newId = Date.now();
         const newItem: WishlistItem = {
-            id: Date.now(),
+            id: newId,
             name: newItemName,
             price: parseFloat(newItemPrice),
             saved: 0,
-            imageUrl: 'https://placehold.co/120x120.png',
+            imageUrl: `https://placehold.co/120x120.png?text=${newItemName.split(' ').join('+')}`,
+            imageHint: newItemName,
         };
         setWishlist([...wishlist, newItem]);
         setNewItemName('');
         setNewItemPrice('');
+
+        setIsImageLoading(newId);
+        try {
+            const {imageUrl} = await getWishlistImage({itemName: newItem.name});
+            setWishlist(prev => prev.map(item => item.id === newId ? {...item, imageUrl} : item));
+        } catch (error) {
+            console.error("Failed to generate image:", error);
+            // Keep placeholder on error
+        } finally {
+            setIsImageLoading(null);
+        }
     };
 
     const handleRemoveItem = (id: number) => {
         setWishlist(wishlist.filter(item => item.id !== id));
     };
 
-    const handleOpenDialog = (item: WishlistItem) => {
-        setCurrentItem(item);
-        setSavedAmount(item.saved.toString());
-        setOpen(true);
-    };
+    const handleStartEditing = (item: WishlistItem) => {
+        setEditingId(item.id);
+        setEditingSaved(item.saved.toString());
+    }
+
+    const handleCancelEditing = () => {
+        setEditingId(null);
+        setEditingSaved('');
+    }
     
-    const handleUpdateSavedAmount = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!currentItem) return;
-        
+    const handleUpdateSavedAmount = (id: number) => {
         setWishlist(wishlist.map(item => 
-            item.id === currentItem.id ? { ...item, saved: parseFloat(savedAmount) || 0 } : item
+            item.id === id ? { ...item, saved: parseFloat(editingSaved) || 0 } : item
         ));
-        setOpen(false);
-        setCurrentItem(null);
-        setSavedAmount('');
+        handleCancelEditing();
     }
 
     return (
@@ -85,15 +91,15 @@ export default function WishlistPage() {
                     <form onSubmit={handleAddItem} className="flex flex-col md:flex-row items-end gap-4">
                         <div className="grid gap-2 flex-1 w-full">
                             <Label htmlFor="item-name">Item Name</Label>
-                            <Input id="item-name" placeholder="e.g., iPhone 16" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} />
+                            <Input id="item-name" placeholder="e.g., Mountain Bike" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="item-price">Target Price (₹)</Label>
-                            <Input id="item-price" type="number" placeholder="e.g., 99900" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} />
+                            <Input id="item-price" type="number" placeholder="e.g., 50000" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} />
                         </div>
                         <Button type="submit" className="gap-1 w-full md:w-auto">
-                            <PlusCircle className="h-4 w-4" />
-                            Add Item
+                            <Sparkles className="h-4 w-4" />
+                            Add & Generate Image
                         </Button>
                     </form>
                 </CardContent>
@@ -109,70 +115,67 @@ export default function WishlistPage() {
                  )}
                  {wishlist.map(item => {
                     const progress = item.price > 0 ? (item.saved / item.price) * 100 : 100;
+                    const isEditingThis = editingId === item.id;
+
                     return (
                         <Card key={item.id} className="overflow-hidden">
                            <div className="flex items-center">
-                             <div className="flex-shrink-0">
-                                <Image 
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    width={120}
-                                    height={120}
-                                    className="object-cover h-full"
-                                    data-ai-hint="product photo"
-                                 />
+                             <div className="flex-shrink-0 w-[120px] h-[120px] relative bg-muted flex items-center justify-center">
+                                {isImageLoading === item.id ? (
+                                    <Loader className="animate-spin text-primary" />
+                                ) : (
+                                    <Image 
+                                        src={item.imageUrl}
+                                        alt={item.name}
+                                        width={120}
+                                        height={120}
+                                        className="object-cover h-full w-full"
+                                        data-ai-hint={item.imageHint}
+                                    />
+                                )}
                              </div>
                              <div className="flex-1 p-4">
                                 <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="font-semibold text-lg">{item.name}</p>
-                                        <p className="text-sm text-muted-foreground">
+                                    <p className="font-semibold text-lg">{item.name}</p>
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+
+                                {isEditingThis ? (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <Label htmlFor={`saved-amount-${item.id}`} className="sr-only">Saved Amount</Label>
+                                        <Input
+                                            id={`saved-amount-${item.id}`}
+                                            type="number"
+                                            value={editingSaved}
+                                            onChange={(e) => setEditingSaved(e.target.value)}
+                                            placeholder="Saved Amount"
+                                            className="h-9"
+                                        />
+                                        <Button size="icon" className="h-9 w-9" onClick={() => handleUpdateSavedAmount(item.id)}><Save className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleCancelEditing}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p 
+                                            className="text-sm text-muted-foreground cursor-pointer hover:text-foreground"
+                                            onClick={() => handleStartEditing(item)}
+                                        >
                                            <span className="font-bold text-primary">₹{item.saved.toLocaleString('en-IN')}</span> saved of ₹{item.price.toLocaleString('en-IN')}
+                                           <Edit className="h-3 w-3 inline-block ml-2 opacity-50" />
                                         </p>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <Button variant="outline" size="icon" onClick={() => handleOpenDialog(item)}>
-                                            <Edit className="h-4 w-4 text-muted-foreground" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="mt-3">
-                                   <Progress value={progress} />
-                                </div>
+                                        <div className="mt-3">
+                                            <Progress value={progress} />
+                                        </div>
+                                    </>
+                                )}
                              </div>
                            </div>
                         </Card>
                     )
                 })}
             </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Update Saved Amount for {currentItem?.name}</DialogTitle>
-                        <DialogDescription>
-                            How much have you saved towards this item so far?
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleUpdateSavedAmount}>
-                        <div className="py-4">
-                            <Label htmlFor="saved-amount">Amount Saved (₹)</Label>
-                            <Input 
-                                id="saved-amount" 
-                                type="number" 
-                                value={savedAmount} 
-                                onChange={(e) => setSavedAmount(e.target.value)}
-                                placeholder="e.g., 25000"
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit">Update Savings</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

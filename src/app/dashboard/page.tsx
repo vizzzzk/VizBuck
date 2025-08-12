@@ -158,15 +158,12 @@ export default function DashboardPage() {
     const totalCreditCardDues = liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0);
     const totalReceivables = liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const totalCash = Number(liquidity.cash || 0);
-    const totalLiquidAssets = totalBankBalance + totalCash + totalReceivables;
-    const totalExpenses = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
     
     const totalFixedDeposits = reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0);
     const totalStocks = reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0);
     const totalCrypto = reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0);
     const totalReserves = totalFixedDeposits + totalStocks + totalCrypto;
     
-    // Note: Opening balance for a month is pre-calculated on month close.
     const openingBalance = liquidity.openingBalance;
 
     const expensesFromBank = transactions
@@ -179,10 +176,12 @@ export default function DashboardPage() {
       
     const closingBankBalance = totalBankBalance - expensesFromBank;
     const closingCash = totalCash - expensesFromCash;
-    const closingLiquidAssets = closingBankBalance + closingCash + totalReceivables;
-
-    const closingBalance = closingLiquidAssets - totalCreditCardDues;
+    const totalLiquidAssets = closingBankBalance + closingCash + totalReceivables;
+    
+    const closingBalance = totalLiquidAssets - totalCreditCardDues;
     const netWorth = closingBalance + totalReserves;
+    
+    const totalExpenses = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
     
     return {
         totalBankBalance,
@@ -230,8 +229,7 @@ export default function DashboardPage() {
   };
   
   if (!isDataLoaded) {
-      // You can return a loading spinner here
-      return null;
+      return <div className="flex h-[calc(100vh-8rem)] items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
   }
 
   const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
@@ -252,7 +250,7 @@ export default function DashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {availableMonths.map(m => (
-                          <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                          <SelectItem key={m} value={m}>{format(new Date(m + '-02'), "MMMM yyyy")}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
@@ -417,7 +415,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground pt-1">As of start of {format(new Date(formattedCurrentMonth), "MMMM")}</p>
+             <p className="text-xs text-muted-foreground pt-1">As of start of {format(new Date(formattedCurrentMonth + '-02'), "MMMM")}</p>
           </CardContent>
         </Card>
         <Card>
@@ -447,7 +445,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Liquidity Breakdown</CardTitle>
             <CardDescription>
-              Your current assets vs. liabilities for {format(new Date(formattedCurrentMonth), "MMMM yyyy")}.
+              Your current assets vs. liabilities for {format(new Date(formattedCurrentMonth + '-02'), "MMMM yyyy")}.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
@@ -527,7 +525,7 @@ export default function DashboardPage() {
           <ChartContainer config={{}} className="h-[300px] w-full">
             <BarChart data={monthlySummary}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis dataKey="month" tickFormatter={(value) => format(new Date(value), "MMM")} />
+              <XAxis dataKey="month" tickFormatter={(value) => format(new Date(value + '-02'), "MMM")} />
               <YAxis tickFormatter={(value) => `₹${value / 1000}k`} />
               <RechartsTooltip 
                 cursor={{fill: 'hsl(var(--muted))'}}
