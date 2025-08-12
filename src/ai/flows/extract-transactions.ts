@@ -64,6 +64,7 @@ Statement File: {{media url=statementDataUri}}`
 
 // --- Sanitization Logic ---
 type Tx = z.infer<typeof TransactionSchema>;
+
 const REQUIRED_KEYS: (keyof Tx)[] = [
   "date",
   "description",
@@ -74,6 +75,7 @@ const REQUIRED_KEYS: (keyof Tx)[] = [
 ];
 
 const isValidDate = (s: any) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+
 const toNumber = (x: any) => {
     if (typeof x === 'number') return x;
     if (typeof x === 'string') return Number(x.replace(/[, ]/g, ""));
@@ -83,9 +85,21 @@ const toNumber = (x: any) => {
 const inferType = (desc: string | undefined): 'CR' | 'DR' | undefined => {
   if (!desc) return;
   const d = desc.toUpperCase();
-  if (/(REFUND|SALARY|NEFT\s*CR|IMPS\s*CR|UPI\s*CR|CREDIT|REVERSAL|INTEREST\s*CR|CASH\s*DEPOSIT)/i.test(d)) return "CR";
-  if (/(UPI|POS|IMPS|NEFT\s*DR|BILLPAY|AUTOPAY|DEBIT|WITHDRAWAL|SI-|EBANK|NETBANK)/i.test(d)) return "DR";
-  return;
+
+  // Likely credit words
+  if (
+    /(REFUND|SALARY|NEFT\s*CR|IMPS\s*CR|UPI\s*CR|CREDIT|REVERSAL|INTEREST\s*CR|CASH\s*DEPOSIT)/i.test(d)
+  ) return "CR";
+
+  // Common debit words
+  if (
+    /(UPI|POS|IMPS|NEFT\s*DR|BILLPAY|AUTOPAY|DEBIT|WITHDRAWAL|SI-|EBANK|NETBANK)/i.test(d)
+  ) return "DR";
+    
+  // Fallback for common merchants
+  if (/(STORE|ZOMATO|NYKAA|MERCHANT)/i.test(d)) return "DR";
+
+  return; // unknown
 };
 
 
@@ -98,29 +112,17 @@ function sanitizeTransactions(raw: any[], defaults = { bank: "Unknown Bank" }): 
         return;
     }
     
-    let candidate = { ...t };
-    
-    // Ensure payment method
-    candidate.paymentMethod = candidate.paymentMethod || defaults.bank;
-    
-    // Infer type if missing
-    candidate.type = candidate.type || inferType(candidate.description) || "DR"; // Default to DR
-
-    // Validate and clean fields
-    const date = isValidDate(candidate.date) ? candidate.date : undefined;
-    const description = candidate.description?.trim();
-    const amount = toNumber(candidate.amount);
-    const category = candidate.category || "Other";
-
-    candidate = {
-        ...candidate,
-        date,
-        description,
-        amount,
-        category,
+    const candidate: Partial<Tx> = {
+      ...t,
+      date: isValidDate(t.date) ? t.date : undefined,
+      description: (t.description || "").trim(),
+      amount: toNumber(t.amount),
+      paymentMethod: t.paymentMethod || defaults.bank,
+      type: t.type || inferType(t.description) || "DR", // safe default
+      category: t.category || "Other",
     };
-
-    const missing = REQUIRED_KEYS.filter(k => (candidate as any)[k] === undefined || (candidate as any)[k] === "" || (k === 'amount' && isNaN(candidate.amount)) );
+    
+    const missing = REQUIRED_KEYS.filter(k => (candidate as any)[k] === undefined || (candidate as any)[k] === "" || (k === 'amount' && isNaN((candidate as any)[k])) );
 
     if (missing.length > 0) {
       console.warn(`Dropping transaction: missing or invalid fields: ${missing.join(", ")}`, t);
@@ -146,6 +148,7 @@ const extractTransactionsFlow = ai.defineFlow(
       return { transactions: [] };
     }
 
+    // Try to find the bank name from one of the valid transactions to use as a default
     const bankName = output.transactions.find(t => t.paymentMethod)?.paymentMethod || 'Unknown Bank';
 
     const sanitizedTransactions = sanitizeTransactions(output.transactions, { bank: bankName });
