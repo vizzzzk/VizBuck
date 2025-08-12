@@ -403,7 +403,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     setCurrentMonth({ year: nextMonthDate.getFullYear(), month: nextMonthDate.getMonth() + 1 });
   };
   
-  const availableMonths = useMemo(() => Object.keys(monthlyData).sort(), [monthlyData]);
+  const availableMonths = useMemo(() => Array.from(new Set(Object.keys(monthlyData))).sort(), [monthlyData]);
   
   const monthlySummary = useMemo(() => {
     const totalReserves = (reserves.fixedDeposits?.reduce((s, i) => s + i.amount, 0) || 0)
@@ -416,23 +416,20 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     return availableMonths.map(monthKey => {
         const data = monthlyData[monthKey];
         if (!data) return null;
-        const { bankAccounts, cash, receivables, creditCards } = data.liquidity;
-        const totalBank = bankAccounts.reduce((s, i) => s + i.balance, 0);
-        const totalReceivables = receivables.reduce((s, i) => s + i.amount, 0);
-        const totalDues = creditCards.reduce((s,i) => s + i.due, 0);
+        const { openingBalance, receivables, creditCards } = data.liquidity;
 
         const debits = data.transactions.filter(t => t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
         const credits = data.transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
       
-        const closingBankBalance = totalBank + credits - debits;
-        const closingCash = cash;
+        const totalReceivables = receivables.reduce((s, i) => s + i.amount, 0);
+        const totalDues = creditCards.reduce((s,i) => s + i.due, 0);
 
-        const liquidity = closingBankBalance + closingCash + totalReceivables;
-        const netWorth = (liquidity - totalDues) + totalReserves;
+        const liquidity = openingBalance + credits - debits + totalReceivables - totalDues;
+        const netWorth = liquidity + totalReserves;
         
         return {
             month: monthKey,
-            liquidity: liquidity - totalDues,
+            liquidity: liquidity,
             reserves: totalReserves,
             netWorth,
         }
@@ -474,5 +471,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
-    
