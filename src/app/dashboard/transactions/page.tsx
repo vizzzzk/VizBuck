@@ -84,7 +84,7 @@ export default function TransactionsPage() {
                 setTransactionForm(emptyTransaction);
             }
         }
-    }, [open, isEditing, editingTransaction]);
+    }, [open, isEditing, editingTransaction, emptyTransaction]);
 
     const handleOpenDialog = (transaction: Transaction | null = null) => {
         if (transaction) {
@@ -250,13 +250,13 @@ export default function TransactionsPage() {
                                         <SelectValue placeholder="Select a category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="food">Food & Dining</SelectItem>
-                                        <SelectItem value="shopping">Shopping</SelectItem>
-                                        <SelectItem value="travel">Travel</SelectItem>
-                                        <SelectItem value="utilities">Utilities</SelectItem>
-                                        <SelectItem value="entertainment">Entertainment</SelectItem>
-                                        <SelectItem value="salary">Salary</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
+                                        <SelectItem value="Food & Dining">Food & Dining</SelectItem>
+                                        <SelectItem value="Shopping">Shopping</SelectItem>
+                                        <SelectItem value="Travel">Travel</SelectItem>
+                                        <SelectItem value="Utilities">Utilities</SelectItem>
+                                        <SelectItem value="Entertainment">Entertainment</SelectItem>
+                                        <SelectItem value="Salary">Salary</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

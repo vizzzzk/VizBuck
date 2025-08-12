@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
 import { format, addMonths, startOfMonth } from "date-fns";
 import { Loader } from "lucide-react";
 
@@ -290,7 +290,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
   
-  const addMultipleTransactions = (transactions: Omit<Transaction, 'id'>[]) => {
+  const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
       const newTransactions = transactions.map(t => ({...t, id: Date.now() + Math.random() * Math.random()}));
        setMonthlyData(prev => ({
           ...prev,
@@ -299,9 +299,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
               transactions: [...prev[currentMonthKey].transactions, ...newTransactions]
           }
       }));
-  };
+  }, [currentMonthKey]);
 
-  const updateTransaction = (transaction: Transaction) => {
+  const updateTransaction = useCallback((transaction: Transaction) => {
       setMonthlyData(prev => ({
           ...prev,
           [currentMonthKey]: {
@@ -309,9 +309,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
               transactions: prev[currentMonthKey].transactions.map(t => t.id === transaction.id ? transaction : t)
           }
       }));
-  };
+  }, [currentMonthKey]);
 
-  const deleteTransaction = (id: number) => {
+  const deleteTransaction = useCallback((id: number) => {
       setMonthlyData(prev => ({
           ...prev,
           [currentMonthKey]: {
@@ -319,7 +319,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
               transactions: prev[currentMonthKey].transactions.filter(t => t.id !== id)
           }
       }));
-  };
+  }, [currentMonthKey]);
 
 
   const closeMonth = () => {

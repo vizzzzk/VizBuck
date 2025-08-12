@@ -44,7 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useFinancials } from "@/hooks/use-financials";
+import { useFinancials, Liquidity, Reserves } from "@/hooks/use-financials";
 
 
 // Mock data for dropdowns
