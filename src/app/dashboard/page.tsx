@@ -146,7 +146,9 @@ export default function DashboardPage() {
     totalReserves,
     openingBalance,
     closingBalance,
-    netWorth
+    netWorth,
+    closingBankBalance,
+    closingCash
   } = useMemo(() => {
     const liquidity = currentMonthData.liquidity;
     const transactions = currentMonthData.transactions;
@@ -165,8 +167,21 @@ export default function DashboardPage() {
     
     // Note: Opening balance for a month is pre-calculated on month close.
     const openingBalance = liquidity.openingBalance;
-    const closingBalance = openingBalance - totalExpenses;
-    const netWorth = (totalLiquidAssets - totalCreditCardDues) + totalReserves;
+
+    const expensesFromBank = transactions
+      .filter(t => t.paymentMethod !== 'Cash')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    
+    const expensesFromCash = transactions
+      .filter(t => t.paymentMethod === 'Cash')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      
+    const closingBankBalance = totalBankBalance - expensesFromBank;
+    const closingCash = totalCash - expensesFromCash;
+    const closingLiquidAssets = closingBankBalance + closingCash + totalReceivables;
+
+    const closingBalance = closingLiquidAssets - totalCreditCardDues;
+    const netWorth = closingBalance + totalReserves;
     
     return {
         totalBankBalance,
@@ -181,14 +196,16 @@ export default function DashboardPage() {
         totalReserves,
         openingBalance,
         closingBalance,
-        netWorth
+        netWorth,
+        closingBankBalance,
+        closingCash,
     };
   }, [currentMonthData, reserves]);
 
   
   const liquidityData = [
-    { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
-    { name: 'Cash', value: totalCash, fill: "hsl(var(--chart-2))" },
+    { name: 'Bank Accounts', value: closingBankBalance, fill: "hsl(var(--chart-1))" },
+    { name: 'Cash', value: closingCash, fill: "hsl(var(--chart-2))" },
     { name: 'Receivables', value: totalReceivables, fill: "hsl(var(--chart-5))" },
     { name: 'Credit Card Dues', value: totalCreditCardDues, fill: "hsl(var(--chart-3))" },
   ].filter(item => item.value !== 0);
@@ -223,7 +240,7 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Financial Overview</h1>
-                <p className="text-muted-foreground">Your financial dashboard at a glance.</p>
+                <p className="text-muted-foreground">Your financial dashboard for {format(new Date(currentMonth.year, currentMonth.month - 1), "MMMM yyyy")}.</p>
             </div>
             <div className="flex items-center gap-2">
                  <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
@@ -527,5 +544,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

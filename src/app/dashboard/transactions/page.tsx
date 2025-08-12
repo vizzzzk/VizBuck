@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Trash2, Edit } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -42,21 +42,62 @@ import { useFinancials, Transaction } from '@/hooks/use-financials';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
+type TransactionFormData = Omit<Transaction, 'id'>;
+
 export default function TransactionsPage() {
     const [open, setOpen] = useState(false);
-    const { currentMonthData, addTransaction, currentMonthData: { liquidity } } = useFinancials();
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+    const { 
+        currentMonthData, 
+        addTransaction, 
+        updateTransaction,
+        deleteTransaction,
+        currentMonthData: { liquidity } 
+    } = useFinancials();
     const { toast } = useToast();
 
-    const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id'>>({
+    const emptyTransaction: TransactionFormData = {
         date: new Date().toISOString().split('T')[0],
         description: '',
         category: '',
         amount: 0,
-        paymentMethod: 'Cash', // Default payment method
-    });
+        paymentMethod: 'Cash',
+    };
+    const [transactionForm, setTransactionForm] = useState<TransactionFormData>(emptyTransaction);
+    
+    useEffect(() => {
+        if (open) {
+            if (isEditing && editingTransaction) {
+                setTransactionForm({
+                     date: editingTransaction.date,
+                     description: editingTransaction.description,
+                     category: editingTransaction.category,
+                     amount: editingTransaction.amount,
+                     paymentMethod: editingTransaction.paymentMethod,
+                });
+            } else {
+                setTransactionForm(emptyTransaction);
+            }
+        }
+    }, [open, isEditing, editingTransaction]);
 
-    const handleSave = () => {
-        if (!newTransaction.description || !newTransaction.category || newTransaction.amount <= 0 || !newTransaction.paymentMethod) {
+    const handleOpenDialog = (transaction: Transaction | null = null) => {
+        if (transaction) {
+            setIsEditing(true);
+            setEditingTransaction(transaction);
+        } else {
+            setIsEditing(false);
+            setEditingTransaction(null);
+        }
+        setOpen(true);
+    };
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!transactionForm.description || !transactionForm.category || transactionForm.amount <= 0 || !transactionForm.paymentMethod) {
             toast({
                 variant: "destructive",
                 title: "Invalid Input",
@@ -64,19 +105,31 @@ export default function TransactionsPage() {
             });
             return;
         }
-        addTransaction(newTransaction);
+        
+        if (isEditing && editingTransaction) {
+            updateTransaction({ ...editingTransaction, ...transactionForm });
+            toast({
+                title: "Transaction Updated",
+                description: `Expense "${transactionForm.description}" has been updated.`,
+            });
+        } else {
+            addTransaction(transactionForm);
+            toast({
+                title: "Transaction Added",
+                description: `Expense of ₹${transactionForm.amount} for "${transactionForm.description}" has been recorded.`,
+            });
+        }
+
         setOpen(false);
+        setIsEditing(false);
+        setEditingTransaction(null);
+    }
+    
+    const handleDelete = (id: number) => {
+        deleteTransaction(id);
         toast({
-            title: "Transaction Added",
-            description: `Expense of ₹${newTransaction.amount} for "${newTransaction.description}" has been recorded.`,
-        });
-        // Reset form
-        setNewTransaction({
-            date: new Date().toISOString().split('T')[0],
-            description: '',
-            category: '',
-            amount: 0,
-            paymentMethod: 'Cash',
+            title: "Transaction Deleted",
+            description: `The expense has been removed.`,
         });
     }
 
@@ -91,87 +144,10 @@ export default function TransactionsPage() {
                     <CardTitle>Transactions</CardTitle>
                     <CardDescription>View and manage your recent expenses for {format(new Date(currentMonthData.month), "MMMM yyyy")}.</CardDescription>
                 </div>
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                         <Button size="sm" className="gap-1">
-                            <PlusCircle className="h-4 w-4" />
-                            Add Expense
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                            <DialogTitle>Add New Expense</DialogTitle>
-                            <DialogDescription>
-                                Manually enter a new transaction here. Click save when you're done.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="date" className="text-right">Date</Label>
-                                <Input 
-                                    id="date" 
-                                    type="date" 
-                                    className="col-span-3" 
-                                    value={newTransaction.date}
-                                    onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="description" className="text-right">Description</Label>
-                                <Input 
-                                    id="description" 
-                                    placeholder="e.g., Coffee with friends" 
-                                    className="col-span-3"
-                                    value={newTransaction.description} 
-                                    onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="category" className="text-right">Category</Label>
-                                <Select onValueChange={(value) => setNewTransaction({...newTransaction, category: value})}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select a category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="food">Food & Dining</SelectItem>
-                                        <SelectItem value="shopping">Shopping</SelectItem>
-                                        <SelectItem value="travel">Travel</SelectItem>
-                                        <SelectItem value="utilities">Utilities</SelectItem>
-                                        <SelectItem value="entertainment">Entertainment</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="amount" className="text-right">Amount</Label>
-                                <Input 
-                                    id="amount" 
-                                    type="number" 
-                                    placeholder="e.g., 500.00" 
-                                    className="col-span-3" 
-                                    value={newTransaction.amount || ''}
-                                    onChange={(e) => setNewTransaction({...newTransaction, amount: Number(e.target.value)})}
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="paymentMethod" className="text-right">Paid By</Label>
-                                <Select onValueChange={(value) => setNewTransaction({...newTransaction, paymentMethod: value})}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select Payment Method" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {paymentMethods.map(method => (
-                                            <SelectItem key={method} value={method}>{method}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" onClick={handleSave}>Save Transaction</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <Button size="sm" className="gap-1" onClick={() => handleOpenDialog()}>
+                    <PlusCircle className="h-4 w-4" />
+                    Add Expense
+                </Button>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -204,8 +180,14 @@ export default function TransactionsPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                                            <DropdownMenuItem>Delete</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleOpenDialog(transaction)}>
+                                                <Edit className="mr-2 h-4 w-4" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleDelete(transaction.id)}>
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete
+                                            </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -221,8 +203,84 @@ export default function TransactionsPage() {
                     </TableBody>
                 </Table>
             </CardContent>
+
+             <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>{isEditing ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
+                        <DialogDescription>
+                            {isEditing ? 'Update the details of your transaction.' : "Manually enter a new transaction here. Click save when you're done."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSave}>
+                        <div className="grid gap-4 py-4">
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="date" className="text-right">Date</Label>
+                                <Input 
+                                    id="date" 
+                                    type="date" 
+                                    className="col-span-3" 
+                                    value={transactionForm.date}
+                                    onChange={(e) => setTransactionForm({...transactionForm, date: e.target.value})}
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="description" className="text-right">Description</Label>
+                                <Input 
+                                    id="description" 
+                                    placeholder="e.g., Coffee with friends" 
+                                    className="col-span-3"
+                                    value={transactionForm.description} 
+                                    onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="category" className="text-right">Category</Label>
+                                <Select value={transactionForm.category} onValueChange={(value) => setTransactionForm({...transactionForm, category: value})}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="food">Food & Dining</SelectItem>
+                                        <SelectItem value="shopping">Shopping</SelectItem>
+                                        <SelectItem value="travel">Travel</SelectItem>
+                                        <SelectItem value="utilities">Utilities</SelectItem>
+                                        <SelectItem value="entertainment">Entertainment</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="amount" className="text-right">Amount</Label>
+                                <Input 
+                                    id="amount" 
+                                    type="number" 
+                                    placeholder="e.g., 500.00" 
+                                    className="col-span-3" 
+                                    value={transactionForm.amount || ''}
+                                    onChange={(e) => setTransactionForm({...transactionForm, amount: Number(e.target.value)})}
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="paymentMethod" className="text-right">Paid By</Label>
+                                <Select value={transactionForm.paymentMethod} onValueChange={(value) => setTransactionForm({...transactionForm, paymentMethod: value})}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select Payment Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {paymentMethods.map(method => (
+                                            <SelectItem key={method} value={method}>{method}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit">Save Transaction</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }
-
-    
