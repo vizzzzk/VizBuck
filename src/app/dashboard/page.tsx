@@ -114,8 +114,10 @@ export default function DashboardPage() {
   }
   
   const handleFormChange = (section: string, field: string, id: number, event: React.ChangeEvent<HTMLInputElement> | string, key: string) => {
-     const value = typeof event === 'string' ? event : event.target.value;
+     const rawValue = typeof event === 'string' ? event : event.target.value;
      const name = typeof event === 'string' ? key : event.target.name;
+     const value = name === 'balance' || name === 'due' || name === 'amount' ? Number(rawValue) : rawValue;
+
 
      const setState = (setter: React.Dispatch<React.SetStateAction<any>>) => {
         setter((prev: any) => ({
@@ -138,26 +140,26 @@ export default function DashboardPage() {
   }
 
   // --- Calculations ---
-  const totalBankBalance = useMemo(() => liquidity.bankAccounts.reduce((sum, acc) => sum + acc.balance, 0), [liquidity.bankAccounts]);
-  const totalCreditCardDues = useMemo(() => liquidity.creditCards.reduce((sum, card) => sum + card.due, 0), [liquidity.creditCards]);
-  const totalReceivables = useMemo(() => liquidity.receivables.reduce((sum, r) => sum + r.amount, 0), [liquidity.receivables]);
-  const totalLiquidAssets = useMemo(() => totalBankBalance + liquidity.cash + totalReceivables, [totalBankBalance, liquidity.cash, totalReceivables]);
+  const totalBankBalance = useMemo(() => liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0), [liquidity.bankAccounts]);
+  const totalCreditCardDues = useMemo(() => liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0), [liquidity.creditCards]);
+  const totalReceivables = useMemo(() => liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0), [liquidity.receivables]);
+  const totalLiquidAssets = useMemo(() => totalBankBalance + Number(liquidity.cash || 0) + totalReceivables, [totalBankBalance, liquidity.cash, totalReceivables]);
   
-  const totalFixedDeposits = useMemo(() => reserves.fixedDeposits.reduce((sum, fd) => sum + fd.amount, 0), [reserves.fixedDeposits]);
-  const totalStocks = useMemo(() => reserves.stocks.reduce((sum, stock) => sum + stock.amount, 0), [reserves.stocks]);
-  const totalCrypto = useMemo(() => reserves.crypto.reduce((sum, c) => sum + c.amount, 0), [reserves.crypto]);
+  const totalFixedDeposits = useMemo(() => reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0), [reserves.fixedDeposits]);
+  const totalStocks = useMemo(() => reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0), [reserves.stocks]);
+  const totalCrypto = useMemo(() => reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0), [reserves.crypto]);
   const totalReserves = useMemo(() => totalFixedDeposits + totalStocks + totalCrypto, [totalFixedDeposits, totalStocks, totalCrypto]);
 
   const netWorth = useMemo(() => totalLiquidAssets + totalReserves - totalCreditCardDues, [totalLiquidAssets, totalReserves, totalCreditCardDues]);
-  const totalIncome = useMemo(() => Object.values(income).reduce((sum, val) => sum + Number(val), 0), [income]);
-  const totalExpenses = useMemo(() => expenses.emis.reduce((sum, emi) => sum + emi.amount, 0) + expenses.other, [expenses]);
+  const totalIncome = useMemo(() => Object.values(income).reduce((sum, val) => sum + Number(val || 0), 0), [income]);
+  const totalExpenses = useMemo(() => expenses.emis.reduce((sum, emi) => sum + Number(emi.amount || 0), 0) + Number(expenses.other || 0), [expenses]);
 
-  const openingBalance = useMemo(() => totalBankBalance + liquidity.cash, [totalBankBalance, liquidity.cash]);
+  const openingBalance = useMemo(() => totalBankBalance + Number(liquidity.cash || 0), [totalBankBalance, liquidity.cash]);
   const closingBalance = useMemo(() => openingBalance + totalIncome - totalExpenses, [openingBalance, totalIncome, totalExpenses]);
   
   const liquidityData = [
     { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
-    { name: 'Cash', value: liquidity.cash, fill: "hsl(var(--chart-2))" },
+    { name: 'Cash', value: Number(liquidity.cash || 0), fill: "hsl(var(--chart-2))" },
     { name: 'Receivables', value: totalReceivables, fill: "hsl(var(--chart-5))" },
   ];
 
@@ -168,9 +170,9 @@ export default function DashboardPage() {
   ];
 
   const incomeData = [
-    { name: 'Salary', value: income.salary, fill: "hsl(var(--chart-1))" },
-    { name: 'Bonus', value: income.bonus, fill: "hsl(var(--chart-2))" },
-    { name: 'Other', value: income.other, fill: "hsl(var(--chart-3))" },
+    { name: 'Salary', value: Number(income.salary || 0), fill: "hsl(var(--chart-1))" },
+    { name: 'Bonus', value: Number(income.bonus || 0), fill: "hsl(var(--chart-2))" },
+    { name: 'Other', value: Number(income.other || 0), fill: "hsl(var(--chart-3))" },
   ];
 
   const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
