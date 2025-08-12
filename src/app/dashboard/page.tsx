@@ -151,6 +151,9 @@ export default function DashboardPage() {
     closingBankBalance,
     closingCash
   } = useMemo(() => {
+    if (!isDataLoaded || !currentMonthData) {
+        return { totalCreditCardDues: 0, totalReceivables: 0, totalReserves: 0, openingBalance: 0, closingBalance: 0, netWorth: 0, closingBankBalance: 0, closingCash: 0 };
+    }
     const liquidity = currentMonthData.liquidity;
     const transactions = currentMonthData.transactions;
 
@@ -206,7 +209,7 @@ export default function DashboardPage() {
         closingBankBalance,
         closingCash,
     };
-  }, [currentMonthData, reserves]);
+  }, [currentMonthData, reserves, isDataLoaded]);
 
   
   const liquidityData = [

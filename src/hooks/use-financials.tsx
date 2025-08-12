@@ -92,12 +92,12 @@ export interface MonthlyFinancials {
 }
 
 // --- Helper for Unique IDs ---
-const generateUniqueId = (transaction: Omit<Transaction, 'id'>): number => {
+const generateUniqueId = (transaction: Omit<Transaction, 'id'>, index: number = 0): number => {
     const randomPart = Math.random() * 10000;
     const datePart = new Date(transaction.date).getTime();
     // A simple hash from the description
     const descPart = transaction.description.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return datePart + (transaction.amount * 100) + descPart + randomPart;
+    return datePart + (transaction.amount * 100) + descPart + randomPart + index;
 }
 
 
@@ -303,7 +303,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
-       const newTransactions = transactions.map(t => ({...t, id: generateUniqueId(t) }));
+       const newTransactions = transactions.map((t, index) => ({...t, id: generateUniqueId(t, index) }));
        
        setMonthlyData(prev => {
             const newState = {...prev};
@@ -460,7 +460,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <FinancialsContext.Provider value={value}>
-      {isDataLoaded && currentMonthData ? children : <div className="flex h-screen w-full items-center justify-center"><Loader className="h-8 w-8 animate-spin text-primary" /></div>}
+      {isDataLoaded ? currentMonthData ? children : <div className="flex h-screen w-full items-center justify-center"><Loader className="h-8 w-8 animate-spin text-primary" /></div> : <div className="flex h-screen w-full items-center justify-center"><Loader className="h-8 w-8 animate-spin text-primary" /></div>}
     </FinancialsContext.Provider>
   );
 };
