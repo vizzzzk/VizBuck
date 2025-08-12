@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
 import { format, addMonths } from "date-fns";
+import { Loader } from "lucide-react";
 
 // --- Type Definitions ---
 export interface BankAccount {
@@ -172,17 +173,32 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
            openingBalance = liquidAssets - totalDues - totalExpenses;
         }
 
-        return {
+        const newMonthData: MonthlyFinancials = {
             month: currentMonthKey,
             liquidity: {
-                openingBalance: openingBalance,
-                bankAccounts: lastMonthData?.liquidity.bankAccounts || [],
+                openingBalance: lastMonthData ? lastMonthData.liquidity.openingBalance : 0, // Carry over opening balance logic here
+                bankAccounts: lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc})) || [],
                 cash: lastMonthData?.liquidity.cash || 0,
-                creditCards: lastMonthData?.liquidity.creditCards || [],
+                creditCards: lastMonthData?.liquidity.creditCards.map(cc => ({...cc})) || [],
                 receivables: [],
             },
             transactions: [],
         };
+
+        if (lastMonthData) {
+            const { bankAccounts, cash, receivables } = lastMonthData.liquidity;
+            const totalExpenses = lastMonthData.transactions.reduce((sum, t) => sum + t.amount, 0);
+            const totalLiquidAssets = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0) + cash + receivables.reduce((sum, r) => sum + r.amount, 0);
+            newMonthData.liquidity.openingBalance = totalLiquidAssets - totalExpenses;
+        }
+
+
+        // This is a temporary fix to avoid modifying state during render
+        setTimeout(() => {
+            setMonthlyData(prev => ({...prev, [currentMonthKey]: newMonthData}))
+        }, 0)
+
+        return newMonthData;
     }
     return monthlyData[currentMonthKey];
   }, [monthlyData, currentMonthKey]);
@@ -228,19 +244,25 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const closeMonth = () => {
-    const { openingBalance, bankAccounts, cash, receivables, creditCards } = currentMonthData.liquidity;
-    const totalExpenses = currentMonthData.transactions.reduce((sum, t) => sum + t.amount, 0);
-    const liquidAssets = bankAccounts.reduce((s,i) => s + i.balance, 0) + cash + receivables.reduce((s,i) => s+i.amount, 0);
-    const totalDues = creditCards.reduce((s,i) => s+i.due, 0);
+    const { liquidity, transactions } = currentMonthData;
+    const { bankAccounts, cash, receivables, creditCards } = liquidity;
+
+    const totalLiquidAssets = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0) + cash;
+    const totalDues = creditCards.reduce((sum, card) => sum + card.due, 0);
+    const totalExpenses = transactions.reduce((sum, t) => sum + t.amount, 0);
     
-    const closingBalance = liquidAssets - totalDues;
+    const closingBalance = totalLiquidAssets - totalDues - totalExpenses;
 
     const nextMonthDate = addMonths(new Date(currentMonthKey), 1);
     const nextMonthKey = format(nextMonthDate, "yyyy-MM-01");
 
     setMonthlyData(prev => ({
         ...prev,
-        [nextMonthKey]: {
+        [currentMonthKey]: { // Save current month's final state
+            ...prev[currentMonthKey],
+            transactions: transactions,
+        },
+        [nextMonthKey]: { // Create next month's state
             month: nextMonthKey,
             liquidity: {
                 openingBalance: closingBalance,
