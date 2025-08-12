@@ -154,32 +154,21 @@ export default function DashboardPage() {
     if (!isDataLoaded || !currentMonthData) {
         return { totalCreditCardDues: 0, totalReceivables: 0, totalReserves: 0, openingBalance: 0, closingBalance: 0, netWorth: 0, closingBankBalance: 0, closingCash: 0 };
     }
-    const liquidity = currentMonthData.liquidity;
-    const transactions = currentMonthData.transactions;
+    const { liquidity, transactions, reserves: monthReserves } = currentMonthData;
 
     const totalBankBalance = liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
     const totalCreditCardDues = liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0);
     const totalReceivables = liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const totalCash = Number(liquidity.cash || 0);
     
-    const totalFixedDeposits = reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0);
-    const totalStocks = reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0);
-    const totalCrypto = reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-    const totalNps = Number(reserves.nps || 0);
-    const totalPf = Number(reserves.pf || 0);
-    const totalMutualFunds = reserves.mutualFunds.reduce((sum, mf) => sum + Number(mf.amount || 0), 0);
-    const totalElss = reserves.elss.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const totalGold = Number(reserves.gold || 0);
-    const totalEsop = Number(reserves.esop || 0);
-    const totalReserves = totalFixedDeposits + totalStocks + totalCrypto + totalNps + totalPf + totalMutualFunds + totalElss + totalGold + totalEsop;
+    const totalReserves = Object.values(monthReserves).flat().reduce((sum, item) => {
+        if (typeof item === 'number') return sum + item;
+        if (item && typeof item.amount === 'number') return sum + item.amount;
+        return sum;
+    }, 0);
 
-    
     const openingBalance = liquidity.openingBalance;
     
-    const debits = transactions
-      .filter(t => t.type === 'DR')
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-      
     const credits = transactions
       .filter(t => t.type === 'CR')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -209,7 +198,7 @@ export default function DashboardPage() {
         closingBankBalance,
         closingCash,
     };
-  }, [currentMonthData, reserves, isDataLoaded]);
+  }, [currentMonthData, isDataLoaded]);
 
   
   const liquidityData = [
@@ -581,3 +570,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
