@@ -18,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -147,7 +146,7 @@ export default function TransactionsPage() {
         setEditingTransaction(null);
     }
     
-    const handleDelete = (id: number) => {
+    const handleDelete = (id: string) => {
         deleteTransaction(id);
         toast({
             title: "Transaction Deleted",

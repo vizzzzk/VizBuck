@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
-import { format, addMonths, startOfMonth, parseISO, getYear, getMonth } from "date-fns";
+import { format, addMonths, startOfMonth, parseISO } from "date-fns";
 import { Loader } from "lucide-react";
 
 // --- Type Definitions ---
@@ -76,7 +76,7 @@ export interface Reserves {
 }
 
 export interface Transaction {
-    id: number;
+    id: string; // Changed to string for UUID
     date: string; // YYYY-MM-DD format
     description: string;
     category: string;
@@ -92,12 +92,12 @@ export interface MonthlyFinancials {
 }
 
 // --- Helper for Unique IDs ---
-const generateUniqueId = (transaction: Omit<Transaction, 'id'>, index: number = 0): number => {
-    const randomPart = Math.random() * 10000;
-    const datePart = new Date(transaction.date).getTime();
-    // A simple hash from the description
-    const descPart = transaction.description.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return datePart + (transaction.amount * 100) + descPart + randomPart + index;
+// Using a simple UUID generator to ensure uniqueness
+const generateUniqueId = (): string => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 
@@ -143,7 +143,7 @@ interface FinancialsContextType {
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   addMultipleTransactions: (transactions: Omit<Transaction, 'id'>[]) => void;
   updateTransaction: (transaction: Transaction) => void;
-  deleteTransaction: (id: number) => void;
+  deleteTransaction: (id: string) => void;
   clearTransactionsForCurrentMonth: () => void;
   updateLiquidity: (liquidity: Liquidity) => void;
   updateReserves: (reserves: Reserves) => void;
@@ -175,6 +175,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
       if (savedReserves) {
           const parsedReserves = JSON.parse(savedReserves);
+          // Merge saved data with initial state to ensure new fields are present
           setReserves({ ...initialReserves, ...parsedReserves });
       } else {
           setReserves(initialReserves);
@@ -291,7 +292,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction = { ...transaction, id: generateUniqueId(transaction) };
+    const newTransaction = { ...transaction, id: generateUniqueId() };
     
     setMonthlyData(prev => ({
       ...prev,
@@ -303,7 +304,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addMultipleTransactions = useCallback((transactions: Omit<Transaction, 'id'>[]) => {
-       const newTransactions = transactions.map((t, index) => ({...t, id: generateUniqueId(t, index) }));
+       const newTransactions = transactions.map((t) => ({...t, id: generateUniqueId() }));
        
        setMonthlyData(prev => {
             const newState = {...prev};
@@ -331,7 +332,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       }));
   }, [currentMonthKey]);
 
-  const deleteTransaction = useCallback((id: number) => {
+  const deleteTransaction = useCallback((id: string) => {
       setMonthlyData(prev => ({
           ...prev,
           [currentMonthKey]: {
@@ -474,5 +475,4 @@ export const useFinancials = () => {
   return context;
 };
 
-    
     
