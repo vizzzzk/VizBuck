@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
-import { format, addMonths, startOfMonth, parseISO } from "date-fns";
+import { format, addMonths, startOfMonth, parseISO, isValid } from "date-fns";
 import { Loader } from "lucide-react";
 import { set } from "zod";
 
@@ -301,8 +301,18 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
        setMonthlyData(prev => {
             const newState = {...prev};
             transactions.forEach(t => {
+                if (!t.date) {
+                    console.warn("Skipping transaction with no date:", t);
+                    return;
+                }
                 const newTransaction = { ...t, id: generateUniqueId() };
                 const transactionDate = parseISO(t.date);
+                
+                if (!isValid(transactionDate)) {
+                    console.warn("Skipping transaction with invalid date:", t);
+                    return;
+                }
+
                 const monthKey = format(startOfMonth(transactionDate), "yyyy-MM-01");
 
                 if (!newState[monthKey]) {
