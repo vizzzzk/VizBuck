@@ -62,6 +62,76 @@ Return the data as a structured JSON object.
 Statement File: {{media url=statementDataUri}}`
 });
 
+// --- Sanitization Logic ---
+type Tx = z.infer<typeof TransactionSchema>;
+const REQUIRED_KEYS: (keyof Tx)[] = [
+  "date",
+  "description",
+  "amount",
+  "type",
+  "category",
+  "paymentMethod",
+];
+
+const isValidDate = (s: any) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const toNumber = (x: any) => {
+    if (typeof x === 'number') return x;
+    if (typeof x === 'string') return Number(x.replace(/[, ]/g, ""));
+    return NaN;
+}
+
+const inferType = (desc: string | undefined): 'CR' | 'DR' | undefined => {
+  if (!desc) return;
+  const d = desc.toUpperCase();
+  if (/(REFUND|SALARY|NEFT\s*CR|IMPS\s*CR|UPI\s*CR|CREDIT|REVERSAL|INTEREST\s*CR|CASH\s*DEPOSIT)/i.test(d)) return "CR";
+  if (/(UPI|POS|IMPS|NEFT\s*DR|BILLPAY|AUTOPAY|DEBIT|WITHDRAWAL|SI-|EBANK|NETBANK)/i.test(d)) return "DR";
+  return;
+};
+
+
+function sanitizeTransactions(raw: any[], defaults = { bank: "Unknown Bank" }): Tx[] {
+  const cleaned: Tx[] = [];
+
+  raw.forEach((t, idx) => {
+    if (!t || typeof t !== 'object') {
+        console.warn(`Dropping row ${idx}: item is not an object.`);
+        return;
+    }
+    
+    let candidate = { ...t };
+    
+    // Ensure payment method
+    candidate.paymentMethod = candidate.paymentMethod || defaults.bank;
+    
+    // Infer type if missing
+    candidate.type = candidate.type || inferType(candidate.description) || "DR"; // Default to DR
+
+    // Validate and clean fields
+    const date = isValidDate(candidate.date) ? candidate.date : undefined;
+    const description = candidate.description?.trim();
+    const amount = toNumber(candidate.amount);
+    const category = candidate.category || "Other";
+
+    candidate = {
+        ...candidate,
+        date,
+        description,
+        amount,
+        category,
+    };
+
+    const missing = REQUIRED_KEYS.filter(k => (candidate as any)[k] === undefined || (candidate as any)[k] === "" || (k === 'amount' && isNaN(candidate.amount)) );
+
+    if (missing.length > 0) {
+      console.warn(`Dropping transaction: missing or invalid fields: ${missing.join(", ")}`, t);
+      return;
+    }
+    cleaned.push(candidate as Tx);
+  });
+
+  return cleaned;
+}
+
 
 const extractTransactionsFlow = ai.defineFlow(
   {
@@ -72,28 +142,13 @@ const extractTransactionsFlow = ai.defineFlow(
   async (input) => {
     const {output} = await extractPrompt(input);
     
-    if (!output || !output.transactions) {
+    if (!output || !Array.isArray(output.transactions)) {
       return { transactions: [] };
     }
 
-    // Sanitize the output to remove any incomplete transactions
-    const requiredKeys: (keyof z.infer<typeof TransactionSchema>)[] = [
-      'date',
-      'description',
-      'amount',
-      'type',
-      'category',
-      'paymentMethod',
-    ];
+    const bankName = output.transactions.find(t => t.paymentMethod)?.paymentMethod || 'Unknown Bank';
 
-    const sanitizedTransactions = output.transactions.filter(tx => {
-      const hasAllKeys = requiredKeys.every(key => tx[key] !== undefined && tx[key] !== null && tx[key] !== '');
-      if (!hasAllKeys) {
-        console.warn('Dropping incomplete transaction:', tx);
-        return false;
-      }
-      return true;
-    });
+    const sanitizedTransactions = sanitizeTransactions(output.transactions, { bank: bankName });
     
     return { transactions: sanitizedTransactions };
   }
