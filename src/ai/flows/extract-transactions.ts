@@ -17,7 +17,8 @@ const StatementInputSchema = z.object({
     .describe(
       "A bank statement PDF file, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."
     ),
-    statementYear: z.string().describe("The year of the bank statement, e.g., '2024'."),
+    startDate: z.string().describe("The start date for the statement period in YYYY-MM-DD format."),
+    endDate: z.string().describe("The end date for the statement period in YYYY-MM-DD format."),
 });
 export type StatementInput = z.infer<typeof StatementInputSchema>;
 
@@ -44,10 +45,10 @@ const extractPrompt = ai.definePrompt({
     name: 'extractTransactionsPrompt',
     input: {schema: StatementInputSchema},
     output: {schema: StatementOutputSchema},
-    prompt: `You are an expert financial analyst AI. Your task is to extract all transactions from the provided bank statement PDF for the year {{{statementYear}}}.
+    prompt: `You are an expert financial analyst AI. Your task is to extract all transactions from the provided bank statement PDF for the period between {{{startDate}}} and {{{endDate}}}.
 
 Analyze the document carefully and extract the following details for each transaction:
-- Date (in YYYY-MM-DD format). All dates must be within the provided year: {{{statementYear}}}.
+- Date (in YYYY-MM-DD format). All dates must be within the provided date range.
 - Description
 - Amount
 - Type (CR for credit/deposit, DR for debit/withdrawal)

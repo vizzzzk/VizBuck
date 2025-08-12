@@ -5,15 +5,23 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, File, Loader } from "lucide-react";
+import { UploadCloud, File, Loader, Calendar as CalendarIcon } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractTransactionsFromStatement } from '@/ai/flows/extract-transactions';
 import { useFinancials } from '@/hooks/use-financials';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, addDays } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 export default function ImportPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [statementYear, setStatementYear] = useState(String(new Date().getFullYear()));
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: new Date(),
+        to: addDays(new Date(), 7),
+    });
     const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const { addMultipleTransactions } = useFinancials();
@@ -43,11 +51,11 @@ export default function ImportPage() {
 
     const handleUpload = async () => {
         if (!selectedFile) {
-            toast({
-                variant: "destructive",
-                title: "No file selected",
-                description: "Please choose a bank statement file to upload.",
-            });
+            toast({ variant: "destructive", title: "No file selected" });
+            return;
+        }
+        if (!dateRange || !dateRange.from || !dateRange.to) {
+            toast({ variant: "destructive", title: "No date range selected" });
             return;
         }
 
@@ -58,7 +66,8 @@ export default function ImportPage() {
             
             const result = await extractTransactionsFromStatement({ 
                 statementDataUri: dataUri,
-                statementYear: statementYear, 
+                startDate: format(dateRange.from, 'yyyy-MM-dd'),
+                endDate: format(dateRange.to, 'yyyy-MM-dd'),
             });
 
             if (result && result.transactions.length > 0) {
@@ -98,15 +107,44 @@ export default function ImportPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="statement-year">Statement Year</Label>
-                    <Input 
-                        id="statement-year"
-                        type="number"
-                        placeholder="e.g., 2024"
-                        value={statementYear}
-                        onChange={(e) => setStatementYear(e.target.value)}
-                    />
+                 <div className="grid gap-2">
+                    <Label htmlFor="date">Statement Period</Label>
+                    <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateRange && "text-muted-foreground"
+                        )}
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                            dateRange.to ? (
+                            <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                            </>
+                            ) : (
+                            format(dateRange.from, "LLL dd, y")
+                            )
+                        ) : (
+                            <span>Pick a date range</span>
+                        )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                        />
+                    </PopoverContent>
+                    </Popover>
                 </div>
             
                 <div className="flex items-center justify-center w-full">
@@ -130,7 +168,7 @@ export default function ImportPage() {
                     </div>
                 )}
                 
-                <Button onClick={handleUpload} disabled={!selectedFile || isUploading || !statementYear} className="w-full">
+                <Button onClick={handleUpload} disabled={!selectedFile || isUploading || !dateRange} className="w-full">
                     {isUploading ? (
                         <>
                             <Loader className="w-4 h-4 mr-2 animate-spin" />
@@ -144,3 +182,4 @@ export default function ImportPage() {
         </Card>
     );
 }
+

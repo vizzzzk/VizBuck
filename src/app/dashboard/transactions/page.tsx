@@ -40,7 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, MoreHorizontal, Trash2, Edit, Trash, ChevronDown } from 'lucide-react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PlusCircle, MoreHorizontal, Trash2, Edit, Trash, ChevronDown, Check, ChevronsUpDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -55,6 +64,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 type TransactionFormData = Omit<Transaction, 'id'>;
 
@@ -92,6 +102,14 @@ export default function TransactionsPage() {
     const sortedTransactions = useMemo(() => {
         return [...currentMonthData.transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [currentMonthData.transactions]);
+
+    const categories = useMemo(() => {
+        const allCategories = currentMonthData.transactions.map(t => t.category);
+        return ['Food & Dining', 'Shopping', 'Travel', 'Utilities', 'Entertainment', 'Salary', 'Other', ...Array.from(new Set(allCategories))];
+    }, [currentMonthData.transactions]);
+
+    const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
 
     useEffect(() => {
         setSelectedRows([]);
@@ -394,20 +412,59 @@ export default function TransactionsPage() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="category" className="text-right">Category</Label>
-                                <Select value={transactionForm.category} onValueChange={(value) => setTransactionForm({...transactionForm, category: value})}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select a category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Food & Dining">Food & Dining</SelectItem>
-                                        <SelectItem value="Shopping">Shopping</SelectItem>
-                                        <SelectItem value="Travel">Travel</SelectItem>
-                                        <SelectItem value="Utilities">Utilities</SelectItem>
-                                        <SelectItem value="Entertainment">Entertainment</SelectItem>
-                                        <SelectItem value="Salary">Salary</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={categoryPopoverOpen}
+                                            className="col-span-3 justify-between"
+                                        >
+                                            {transactionForm.category || "Select category..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[300px] p-0">
+                                        <Command>
+                                            <CommandInput 
+                                                placeholder="Search or create..." 
+                                                value={newCategory}
+                                                onValueChange={setNewCategory}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    <Button className="w-full" onClick={() => {
+                                                        setTransactionForm({...transactionForm, category: newCategory });
+                                                        setCategoryPopoverOpen(false);
+                                                        setNewCategory('');
+                                                    }}>
+                                                        Create "{newCategory}"
+                                                    </Button>
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {categories.map((category) => (
+                                                    <CommandItem
+                                                        key={category}
+                                                        value={category}
+                                                        onSelect={(currentValue) => {
+                                                            setTransactionForm({...transactionForm, category: currentValue });
+                                                            setCategoryPopoverOpen(false);
+                                                        }}
+                                                    >
+                                                        <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            transactionForm.category === category ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                        />
+                                                        {category}
+                                                    </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                              <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="type" className="text-right">Type</Label>
@@ -455,3 +512,4 @@ export default function TransactionsPage() {
         </Card>
     );
 }
+

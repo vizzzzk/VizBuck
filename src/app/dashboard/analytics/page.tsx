@@ -9,9 +9,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { Bar, BarChart, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { useFinancials } from '@/hooks/use-financials';
-import { format, getYear, getMonth } from 'date-fns';
+import { format, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -22,9 +22,11 @@ import {
 import { Label } from '@/components/ui/label';
 
 type YearType = 'calendar' | 'financial';
+const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
 
 export default function AnalyticsPage() {
-    const { monthlySummary, isDataLoaded } = useFinancials();
+    const { monthlySummary, isDataLoaded, currentMonthData } = useFinancials();
     const [yearType, setYearType] = useState<YearType>('calendar');
     const [selectedYear, setSelectedYear] = useState<string>(String(getYear(new Date())));
 
@@ -50,6 +52,27 @@ export default function AnalyticsPage() {
             }
         });
     }, [monthlySummary, yearType, selectedYear, isDataLoaded]);
+    
+     const categorySpendingData = useMemo(() => {
+        if (!isDataLoaded) return [];
+
+        const spending = currentMonthData.transactions
+            .filter(t => t.type === 'DR')
+            .reduce((acc, t) => {
+                const category = t.category || 'Other';
+                acc[category] = (acc[category] || 0) + t.amount;
+                return acc;
+            }, {} as Record<string, number>);
+
+        return Object.entries(spending)
+            .map(([category, total], index) => ({
+                name: category,
+                total,
+                fill: CHART_COLORS[index % CHART_COLORS.length]
+            }))
+            .sort((a,b) => b.total - a.total);
+
+    }, [currentMonthData.transactions, isDataLoaded]);
 
 
     if (!isDataLoaded) {
@@ -133,6 +156,46 @@ export default function AnalyticsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Category Spending</CardTitle>
+                    <CardDescription>
+                        A breakdown of your expenses by category for {format(new Date(currentMonthData.month), "MMMM yyyy")}.
+                    </CardDescription>
+                </CardHeader>
+                 <CardContent>
+                    {categorySpendingData.length > 0 ? (
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <BarChart data={categorySpendingData} layout="vertical" margin={{left: 20, right: 20}}>
+                                <CartesianGrid horizontal={false} />
+                                <XAxis type="number" hide />
+                                <YAxis 
+                                    dataKey="name" 
+                                    type="category" 
+                                    tickLine={false} 
+                                    axisLine={false}
+                                    width={120}
+                                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                />
+                                <RechartsTooltip 
+                                    cursor={{fill: 'hsl(var(--muted))'}}
+                                    content={<ChartTooltipContent 
+                                        formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`}
+                                    />}
+                                />
+                                <Bar dataKey="total" radius={4}>
+                                </Bar>
+                            </BarChart>
+                        </ChartContainer>
+                    ) : (
+                        <div className="flex h-[400px] w-full items-center justify-center rounded-md border border-dashed">
+                            <p className="text-muted-foreground">No spending data for this month.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }
+
