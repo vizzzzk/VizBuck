@@ -261,7 +261,9 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
                  <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
                     <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select Month" />
+                        <SelectValue>
+                          {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                         {availableMonths.map(m => (
