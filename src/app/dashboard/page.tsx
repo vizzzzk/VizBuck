@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, ArrowDownRight, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, PlusCircle, Edit, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -25,7 +25,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
+import { Pie, PieChart, Cell } from "recharts";
 import {
   Select,
   SelectContent,
@@ -62,29 +62,14 @@ const initialReserves = {
     crypto: [{id: 1, exchange: 'WazirX', amount: 125000}],
 };
 
-const initialIncome = {
-    salary: 150000,
-    bonus: 25000,
-    other: 10000,
-};
-
-const initialExpenses = {
-    emis: [{ id: 1, name: 'Car Loan', amount: 20000 }],
-    other: 45000, // Placeholder for other expenses from statement
-};
-
 export default function DashboardPage() {
   const [open, setOpen] = useState(false);
   const [liquidity, setLiquidity] = useState(initialLiquidity);
   const [reserves, setReserves] = useState(initialReserves);
-  const [income, setIncome] = useState(initialIncome);
-  const [expenses, setExpenses] = useState(initialExpenses);
 
   // --- Dynamic Form State ---
   const [formLiquidity, setFormLiquidity] = useState(initialLiquidity);
   const [formReserves, setFormReserves] = useState(initialReserves);
-  const [formIncome, setFormIncome] = useState(initialIncome);
-  const [formExpenses, setFormExpenses] = useState(initialExpenses);
   
   const handleAddItem = (section: string, field: string) => {
     const newId = Date.now();
@@ -94,9 +79,6 @@ export default function DashboardPage() {
     } else if (section === 'reserves') {
         const currentItems = formReserves[field as keyof typeof formReserves] as any[];
         setFormReserves(prev => ({...prev, [field]: [...currentItems, {id: newId, institution: '', broker: '', exchange: '', amount: 0}]}))
-    } else if (section === 'expenses') {
-        const currentItems = formExpenses[field as keyof typeof formExpenses] as any[];
-        setFormExpenses(prev => ({...prev, [field]: [...currentItems, {id: newId, name: '', amount: 0}]}))
     }
   }
 
@@ -107,9 +89,6 @@ export default function DashboardPage() {
     } else if (section === 'reserves') {
         const currentItems = formReserves[field as keyof typeof formReserves] as any[];
         setFormReserves(prev => ({...prev, [field]: currentItems.filter(item => item.id !== id)}));
-    } else if (section === 'expenses') {
-        const currentItems = formExpenses[field as keyof typeof formExpenses] as any[];
-        setFormExpenses(prev => ({...prev, [field]: currentItems.filter(item => item.id !== id)}));
     }
   }
   
@@ -128,7 +107,6 @@ export default function DashboardPage() {
 
      if(section === 'liquidity') setState(setFormLiquidity);
      else if (section === 'reserves') setState(setFormReserves);
-     else if (section === 'expenses') setState(setFormExpenses);
   }
 
   const handleDateChange = (id: number, date: Date | undefined) => {
@@ -143,24 +121,22 @@ export default function DashboardPage() {
   const totalBankBalance = useMemo(() => liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0), [liquidity.bankAccounts]);
   const totalCreditCardDues = useMemo(() => liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0), [liquidity.creditCards]);
   const totalReceivables = useMemo(() => liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0), [liquidity.receivables]);
-  const totalLiquidAssets = useMemo(() => totalBankBalance + Number(liquidity.cash || 0) + totalReceivables, [totalBankBalance, liquidity.cash, totalReceivables]);
+  const totalCash = useMemo(() => Number(liquidity.cash || 0), [liquidity.cash]);
+  const totalLiquidAssets = useMemo(() => totalBankBalance + totalCash + totalReceivables, [totalBankBalance, totalCash, totalReceivables]);
   
   const totalFixedDeposits = useMemo(() => reserves.fixedDeposits.reduce((sum, fd) => sum + Number(fd.amount || 0), 0), [reserves.fixedDeposits]);
   const totalStocks = useMemo(() => reserves.stocks.reduce((sum, stock) => sum + Number(stock.amount || 0), 0), [reserves.stocks]);
   const totalCrypto = useMemo(() => reserves.crypto.reduce((sum, c) => sum + Number(c.amount || 0), 0), [reserves.crypto]);
   const totalReserves = useMemo(() => totalFixedDeposits + totalStocks + totalCrypto, [totalFixedDeposits, totalStocks, totalCrypto]);
 
+  const openingBalance = useMemo(() => totalLiquidAssets - totalCreditCardDues, [totalLiquidAssets, totalCreditCardDues]);
   const netWorth = useMemo(() => totalLiquidAssets + totalReserves - totalCreditCardDues, [totalLiquidAssets, totalReserves, totalCreditCardDues]);
-  const totalIncome = useMemo(() => Object.values(income).reduce((sum, val) => sum + Number(val || 0), 0), [income]);
-  const totalExpenses = useMemo(() => expenses.emis.reduce((sum, emi) => sum + Number(emi.amount || 0), 0) + Number(expenses.other || 0), [expenses]);
-
-  const openingBalance = useMemo(() => totalBankBalance + Number(liquidity.cash || 0), [totalBankBalance, liquidity.cash]);
-  const closingBalance = useMemo(() => openingBalance + totalIncome - totalExpenses, [openingBalance, totalIncome, totalExpenses]);
   
   const liquidityData = [
     { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
-    { name: 'Cash', value: Number(liquidity.cash || 0), fill: "hsl(var(--chart-2))" },
+    { name: 'Cash', value: totalCash, fill: "hsl(var(--chart-2))" },
     { name: 'Receivables', value: totalReceivables, fill: "hsl(var(--chart-5))" },
+    { name: 'Credit Card Dues', value: totalCreditCardDues, fill: "hsl(var(--chart-3))" },
   ];
 
   const reservesData = [
@@ -169,18 +145,10 @@ export default function DashboardPage() {
     { name: 'Crypto', value: totalCrypto },
   ];
 
-  const incomeData = [
-    { name: 'Salary', value: Number(income.salary || 0), fill: "hsl(var(--chart-1))" },
-    { name: 'Bonus', value: Number(income.bonus || 0), fill: "hsl(var(--chart-2))" },
-    { name: 'Other', value: Number(income.other || 0), fill: "hsl(var(--chart-3))" },
-  ];
-
   const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLiquidity(formLiquidity);
     setReserves(formReserves);
-    setIncome(formIncome);
-    setExpenses(formExpenses);
     setOpen(false);
   }
 
@@ -188,7 +156,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-                <h2 className="text-2xl font-bold">Financial Overview</h2>
+                <h1 className="text-3xl font-bold tracking-tight">Financial Overview</h1>
                 <p className="text-muted-foreground">Your financial dashboard at a glance.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -198,6 +166,7 @@ export default function DashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="2024">2024</SelectItem>
+                        <SelectItem value="2025">2025</SelectItem>
                         <SelectItem value="2023">2023</SelectItem>
                     </SelectContent>
                 </Select>
@@ -212,8 +181,9 @@ export default function DashboardPage() {
                 </Select>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <Edit className="h-4 w-4" />
+                        <Button variant="outline">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Financials
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-4xl">
@@ -224,11 +194,11 @@ export default function DashboardPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleSaveChanges}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[70vh] overflow-y-auto pr-4">
                                 
                                 {/* Liquidity Section */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg">Liquidity</h3>
+                                    <h3 className="font-semibold text-xl">Liquidity</h3>
                                     {/* Bank Accounts */}
                                     <Card className="p-4 space-y-3">
                                         <Label>Bank Accounts</Label>
@@ -265,19 +235,21 @@ export default function DashboardPage() {
                                     <Card className="p-4 space-y-3">
                                         <Label>Receivables</Label>
                                         {formLiquidity.receivables.map((r) => (
-                                             <div key={r.id} className="grid grid-cols-2 gap-2 items-center">
-                                                <Input name="source" placeholder="Source" value={r.source} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
-                                                <Input name="amount" type="number" placeholder="Amount" value={r.amount} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
+                                             <div key={r.id} className="space-y-2">
+                                                <div className="flex gap-2 items-center">
+                                                    <Input name="source" placeholder="Source" value={r.source} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
+                                                    <Input name="amount" type="number" placeholder="Amount" value={r.amount} onChange={(e) => handleFormChange('liquidity', 'receivables', r.id, e, '')} />
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('liquidity', 'receivables', r.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                </div>
                                                 <Popover>
                                                     <PopoverTrigger asChild>
-                                                        <Button variant={"outline"} className={cn("col-span-2 justify-start text-left font-normal", !r.date && "text-muted-foreground")}>
+                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !r.date && "text-muted-foreground")}>
                                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                                             {r.date ? format(r.date, "PPP") : <span>Expected Date</span>}
                                                         </Button>
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={r.date} onSelect={(d) => handleDateChange(r.id, d)} initialFocus/></PopoverContent>
                                                 </Popover>
-                                                <Button type="button" variant="ghost" size="icon" className="col-start-2 justify-self-end" onClick={() => handleRemoveItem('liquidity', 'receivables', r.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </div>
                                         ))}
                                         <Button type="button" variant="outline" size="sm" onClick={() => handleAddItem('liquidity', 'receivables')}><PlusCircle className="mr-2 h-4 w-4"/>Add Receivable</Button>
@@ -292,7 +264,7 @@ export default function DashboardPage() {
                                 
                                 {/* Reserves & Investments Section */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg">Reserves & Investments</h3>
+                                    <h3 className="font-semibold text-xl">Reserves & Investments</h3>
                                      {/* Fixed Deposits */}
                                     <Card className="p-4 space-y-3">
                                         <Label>Fixed Deposits</Label>
@@ -337,36 +309,6 @@ export default function DashboardPage() {
                                     </Card>
                                 </div>
                                 
-                                 {/* Income & Expenses Section */}
-                                <div className="space-y-4">
-                                     <h3 className="font-semibold text-lg">Income & Expenses</h3>
-                                     <Card className="p-4 space-y-2">
-                                        <Label>Monthly Income (₹)</Label>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="salary" className="text-xs">Salary</Label>
-                                            <Input id="salary" name="salary" type="number" value={formIncome.salary} onChange={(e) => setFormIncome({...formIncome, salary: Number(e.target.value)})} />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="bonus" className="text-xs">Bonus</Label>
-                                            <Input id="bonus" name="bonus" type="number" value={formIncome.bonus} onChange={(e) => setFormIncome({...formIncome, bonus: Number(e.target.value)})} />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="other" className="text-xs">Other Income</Label>
-                                            <Input id="other" name="other" type="number" value={formIncome.other} onChange={(e) => setFormIncome({...formIncome, other: Number(e.target.value)})} />
-                                        </div>
-                                    </Card>
-                                     <Card className="p-4 space-y-3">
-                                        <Label>EMIs</Label>
-                                        {formExpenses.emis.map((emi) => (
-                                             <div key={emi.id} className="flex gap-2 items-center">
-                                                <Input name="name" placeholder="EMI Name (e.g., Car Loan)" value={emi.name} onChange={(e) => handleFormChange('expenses', 'emis', emi.id, e, '')} />
-                                                <Input name="amount" type="number" placeholder="Amount" value={emi.amount} onChange={(e) => handleFormChange('expenses', 'emis', emi.id, e, '')} />
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem('expenses', 'emis', emi.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                            </div>
-                                        ))}
-                                        <Button type="button" variant="outline" size="sm" onClick={() => handleAddItem('expenses', 'emis')}><PlusCircle className="mr-2 h-4 w-4"/>Add EMI</Button>
-                                    </Card>
-                                </div>
                             </div>
                             <DialogFooter className="pt-6">
                                 <Button type="submit">Save changes</Button>
@@ -377,7 +319,7 @@ export default function DashboardPage() {
             </div>
         </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
@@ -393,7 +335,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Opening Balance</CardTitle>
+            <CardTitle className="text-sm font-medium">Opening Balance (Net Liquidity)</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -403,24 +345,12 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Closing Balance</CardTitle>
-            <Banknote className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Reserves</CardTitle>
+            <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">As of 31st July</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-            <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{totalIncome.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">
-              For July 2024
-            </p>
+            <div className="text-2xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground">FDs, Stocks, & Crypto</p>
           </CardContent>
         </Card>
       </div>
@@ -430,7 +360,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Liquidity Breakdown</CardTitle>
             <CardDescription>
-              Snapshot of your current liquid assets. Liabilities are separate.
+              Your assets vs. liabilities at a glance.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
@@ -439,10 +369,11 @@ export default function DashboardPage() {
                 bankAccounts: { label: "Bank Accounts", color: "hsl(var(--chart-1))" },
                 cash: { label: "Cash", color: "hsl(var(--chart-2))" },
                 receivables: { label: "Receivables", color: "hsl(var(--chart-5))" },
-             }} className="h-[250px] w-full">
+                creditCardDues: { label: "Credit Card Dues", color: "hsl(var(--chart-3))" },
+             }} className="h-[300px] w-full">
                <PieChart>
                  <ChartTooltip
-                    cursor={false}
+                    cursor={true}
                     content={<ChartTooltipContent hideLabel />}
                  />
                  <Pie
@@ -451,8 +382,8 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
-                    innerRadius={60}
+                    outerRadius={120}
+                    innerRadius={80}
                     labelLine={false}
                     label={({
                         cx,
@@ -474,9 +405,9 @@ export default function DashboardPage() {
                             y={y}
                             textAnchor={x > cx ? 'start' : 'end'}
                             dominantBaseline="central"
-                            className="fill-foreground text-xs font-semibold"
+                            className="fill-foreground text-sm font-semibold"
                         >
-                           {liquidityData[index].name} (₹{value.toLocaleString('en-IN')})
+                           {liquidityData[index].name}
                         </text>
                         )
                     }}
@@ -497,60 +428,26 @@ export default function DashboardPage() {
               Long-term assets and investments.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+          <CardContent className="space-y-4 pt-6">
              {reservesData.map((item) => (
                 <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-muted rounded-md">
-                            {item.name === 'Fixed Deposits' && <Landmark className="w-5 h-5 text-muted-foreground" />}
-                            {item.name === 'Stocks' && <CandlestickChart className="w-5 h-5 text-muted-foreground" />}
-                            {item.name === 'Crypto' && <DollarSign className="w-5 h-5 text-muted-foreground" />}
+                        <div className="p-3 bg-muted rounded-md">
+                            {item.name === 'Fixed Deposits' && <Landmark className="w-6 h-6 text-muted-foreground" />}
+                            {item.name === 'Stocks' && <CandlestickChart className="w-6 h-6 text-muted-foreground" />}
+                            {item.name === 'Crypto' && <DollarSign className="w-6 h-6 text-muted-foreground" />}
                         </div>
-                        <span className="font-medium">{item.name}</span>
+                        <div>
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">Total Value</p>
+                        </div>
                     </div>
-                    <span className="font-bold text-lg">₹{item.value.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-xl">₹{item.value.toLocaleString('en-IN')}</span>
                 </div>
              ))}
           </CardContent>
         </Card>
       </div>
-      
-       <div className="grid gap-6 md:grid-cols-1">
-         <Card>
-          <CardHeader>
-            <CardTitle>Income Sources</CardTitle>
-            <CardDescription>
-              Breakdown of your income for the selected period.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pl-0">
-             <ChartContainer config={{}} className="h-[250px] w-full">
-              <BarChart data={incomeData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid horizontal={false} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                  width={80}
-                  className="text-sm"
-                />
-                <XAxis type="number" hide />
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent />}
-                />
-                 <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]}>
-                    {incomeData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                 </Bar>
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-       </div>
     </div>
   );
 }
