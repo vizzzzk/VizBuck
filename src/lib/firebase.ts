@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCNVzTY9CXY7J_qWPxivPK-EkZgKUcK6Ic",
   authDomain: "webot-scm5f.firebaseapp.com",
   projectId: "webot-scm5f",
-  storageBucket: "webot-scm5f.appspot.com",
+  storageBucket: "webot-scm5f.firebasestorage.app",
   messagingSenderId: "634655886203",
   appId: "1:634655886203:web:3313a4d57bce49d8ec8bde"
 };
