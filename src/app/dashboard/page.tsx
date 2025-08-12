@@ -1,6 +1,8 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import * as React from "react";
+import { useMemo } from "react";
 import { DollarSign, IndianRupee, Banknote, Landmark, Wallet, CreditCard, CandlestickChart, ArrowUpRight, PlusCircle, Edit, Trash2 } from "lucide-react";
 import {
   Card,
@@ -52,7 +54,7 @@ const cryptoExchanges = ["WazirX", "CoinDCX", "CoinSwitch Kuber", "Binance", "Ot
 
 
 export default function DashboardPage() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = React.useState(false);
   const { 
     liquidity, 
     reserves, 
@@ -62,8 +64,8 @@ export default function DashboardPage() {
   } = useFinancials();
 
   // --- Dynamic Form State ---
-  const [formLiquidity, setFormLiquidity] = useState(liquidity);
-  const [formReserves, setFormReserves] = useState(reserves);
+  const [formLiquidity, setFormLiquidity] = React.useState(liquidity);
+  const [formReserves, setFormReserves] = React.useState(reserves);
 
   // Reset form state when dialog opens
   React.useEffect(() => {
@@ -108,8 +110,8 @@ export default function DashboardPage() {
         }))
      }
 
-     if(section === 'liquidity') setState(setFormLiquidity);
-     else if (section === 'reserves') setState(setFormReserves);
+     if(section === 'liquidity') setFormLiquidity(setFormLiquidity);
+     else if (section === 'reserves') setFormReserves(setFormReserves);
   }
 
   const handleDateChange = (id: number, date: Date | undefined) => {
@@ -442,3 +444,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
