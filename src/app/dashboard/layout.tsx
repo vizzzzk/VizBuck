@@ -31,8 +31,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { SheetTitle } from "@/components/ui/sheet";
 
 export default function DashboardLayout({
   children,
@@ -76,9 +74,6 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <Sidebar>
-         <VisuallyHidden>
-            <SheetTitle>Navigation</SheetTitle>
-          </VisuallyHidden>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <Package2 className="h-6 w-6 text-primary" />
