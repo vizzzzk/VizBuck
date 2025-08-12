@@ -136,13 +136,13 @@ export default function DashboardPage() {
     { name: 'Bank Accounts', value: totalBankBalance, fill: "hsl(var(--chart-1))" },
     { name: 'Cash', value: totalCash, fill: "hsl(var(--chart-2))" },
     { name: 'Receivables', value: totalReceivables, fill: "hsl(var(--chart-5))" },
-    { name: 'Credit Card Dues', value: totalCreditCardDues, fill: "hsl(var(--chart-3))" },
-  ];
+    { name: 'Credit Card Dues', value: -totalCreditCardDues, fill: "hsl(var(--chart-3))" },
+  ].filter(item => item.value !== 0);
 
   const reservesData = [
-    { name: 'Fixed Deposits', value: totalFixedDeposits },
-    { name: 'Stocks', value: totalStocks },
-    { name: 'Crypto', value: totalCrypto },
+    { name: 'Fixed Deposits', value: totalFixedDeposits, fill: "hsl(var(--chart-1))" },
+    { name: 'Stocks', value: totalStocks, fill: "hsl(var(--chart-4))" },
+    { name: 'Crypto', value: totalCrypto, fill: "hsl(var(--chart-2))" },
   ];
 
   const handleSaveChanges = (e: React.FormEvent<HTMLFormElement>) => {
@@ -153,21 +153,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Financial Overview</h1>
                 <p className="text-muted-foreground">Your financial dashboard at a glance.</p>
             </div>
             <div className="flex items-center gap-2">
-                 <Select defaultValue="2024">
+                 <Select defaultValue="2025">
                     <SelectTrigger className="w-[120px]">
                         <SelectValue placeholder="Year" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="2024">2024</SelectItem>
                         <SelectItem value="2025">2025</SelectItem>
-                        <SelectItem value="2023">2023</SelectItem>
                     </SelectContent>
                 </Select>
                  <Select defaultValue="july">
@@ -181,7 +179,7 @@ export default function DashboardPage() {
                 </Select>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline">
+                        <Button>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit Financials
                         </Button>
@@ -198,11 +196,11 @@ export default function DashboardPage() {
                                 
                                 {/* Liquidity Section */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-xl">Liquidity</h3>
+                                    <h3 className="font-semibold text-xl text-primary">Liquidity</h3>
                                     {/* Bank Accounts */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Bank Accounts</Label>
-                                        {formLiquidity.bankAccounts.map((acc, index) => (
+                                        {formLiquidity.bankAccounts.map((acc) => (
                                             <div key={acc.id} className="flex gap-2 items-center">
                                                 <Select value={acc.name} onValueChange={(val) => handleFormChange('liquidity', 'bankAccounts', acc.id, val, 'name')}>
                                                     <SelectTrigger><SelectValue placeholder="Select Bank"/></SelectTrigger>
@@ -216,7 +214,7 @@ export default function DashboardPage() {
                                     </Card>
                                     
                                     {/* Credit Cards */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Credit Card Dues</Label>
                                         {formLiquidity.creditCards.map((card) => (
                                              <div key={card.id} className="flex gap-2 items-center">
@@ -232,7 +230,7 @@ export default function DashboardPage() {
                                     </Card>
 
                                      {/* Receivables */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Receivables</Label>
                                         {formLiquidity.receivables.map((r) => (
                                              <div key={r.id} className="space-y-2">
@@ -256,7 +254,7 @@ export default function DashboardPage() {
                                     </Card>
 
                                     {/* Cash */}
-                                    <Card className="p-4 space-y-2">
+                                    <Card className="p-4 space-y-2 bg-muted/30 border-dashed">
                                         <Label htmlFor="cash">Cash in Hand (₹)</Label>
                                         <Input id="cash" name="cash" type="number" value={formLiquidity.cash} onChange={(e) => setFormLiquidity({...formLiquidity, cash: Number(e.target.value)})} />
                                     </Card>
@@ -264,9 +262,9 @@ export default function DashboardPage() {
                                 
                                 {/* Reserves & Investments Section */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-xl">Reserves & Investments</h3>
+                                    <h3 className="font-semibold text-xl text-primary">Reserves & Investments</h3>
                                      {/* Fixed Deposits */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Fixed Deposits</Label>
                                         {formReserves.fixedDeposits.map((fd) => (
                                              <div key={fd.id} className="flex gap-2 items-center">
@@ -278,7 +276,7 @@ export default function DashboardPage() {
                                         <Button type="button" variant="outline" size="sm" onClick={() => handleAddItem('reserves', 'fixedDeposits')}><PlusCircle className="mr-2 h-4 w-4"/>Add FD</Button>
                                     </Card>
                                     {/* Stocks */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Stocks</Label>
                                         {formReserves.stocks.map((s) => (
                                              <div key={s.id} className="flex gap-2 items-center">
@@ -293,7 +291,7 @@ export default function DashboardPage() {
                                         <Button type="button" variant="outline" size="sm" onClick={() => handleAddItem('reserves', 'stocks')}><PlusCircle className="mr-2 h-4 w-4"/>Add Stocks</Button>
                                     </Card>
                                     {/* Crypto */}
-                                    <Card className="p-4 space-y-3">
+                                    <Card className="p-4 space-y-3 bg-muted/30 border-dashed">
                                         <Label>Crypto</Label>
                                         {formReserves.crypto.map((c) => (
                                              <div key={c.id} className="flex gap-2 items-center">
@@ -320,47 +318,47 @@ export default function DashboardPage() {
         </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card className="bg-card shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground text-green-500 flex items-center">
-              <ArrowUpRight className="h-4 w-4 mr-1" />
-              +5.2% from last month
+            <div className="text-3xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground flex items-center pt-1">
+              <ArrowUpRight className="h-4 w-4 mr-1 text-green-500" />
+              <span className="text-green-500">+5.2%</span>&nbsp;from last month
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Opening Balance (Net Liquidity)</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Liquidity</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground">As of 1st July</p>
+            <div className="text-3xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground pt-1">As of start of July</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reserves</CardTitle>
             <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground">FDs, Stocks, & Crypto</p>
+            <div className="text-3xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground pt-1">FDs, Stocks, & Crypto</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-5">
-        <Card className="md:col-span-3">
+        <Card className="md:col-span-3 bg-card shadow-lg">
           <CardHeader>
             <CardTitle>Liquidity Breakdown</CardTitle>
             <CardDescription>
-              Your assets vs. liabilities at a glance.
+              Your current assets vs. liabilities.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
@@ -370,11 +368,14 @@ export default function DashboardPage() {
                 cash: { label: "Cash", color: "hsl(var(--chart-2))" },
                 receivables: { label: "Receivables", color: "hsl(var(--chart-5))" },
                 creditCardDues: { label: "Credit Card Dues", color: "hsl(var(--chart-3))" },
-             }} className="h-[300px] w-full">
+             }} className="h-[350px] w-full">
                <PieChart>
                  <ChartTooltip
                     cursor={true}
-                    content={<ChartTooltipContent hideLabel />}
+                    content={<ChartTooltipContent 
+                        className="bg-background/80 backdrop-blur-sm"
+                        hideLabel 
+                    />}
                  />
                  <Pie
                     data={liquidityData}
@@ -382,67 +383,42 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={120}
-                    innerRadius={80}
-                    labelLine={false}
-                    label={({
-                        cx,
-                        cy,
-                        midAngle,
-                        innerRadius,
-                        outerRadius,
-                        value,
-                        index,
-                    }) => {
-                        const RADIAN = Math.PI / 180
-                        const radius = 25 + innerRadius + (outerRadius - innerRadius)
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
-                        return (
-                        <text
-                            x={x}
-                            y={y}
-                            textAnchor={x > cx ? 'start' : 'end'}
-                            dominantBaseline="central"
-                            className="fill-foreground text-sm font-semibold"
-                        >
-                           {liquidityData[index].name}
-                        </text>
-                        )
-                    }}
-                >
-                    {liquidityData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.fill} />
+                    outerRadius={140}
+                    innerRadius={90}
+                    strokeWidth={2}
+                    stroke="hsl(var(--border))"
+                 >
+                    {liquidityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                  </Pie>
-                 <ChartLegend content={<ChartLegendContent />} />
+                 <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                </PieChart>
             </ChartContainer>
           </CardContent>
         </Card>
-         <Card className="md:col-span-2">
+         <Card className="md:col-span-2 bg-card shadow-lg">
           <CardHeader>
             <CardTitle>Reserves & Investments</CardTitle>
             <CardDescription>
-              Long-term assets and investments.
+              Your long-term asset allocation.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-6 pt-6">
              {reservesData.map((item) => (
                 <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 bg-muted rounded-md">
-                            {item.name === 'Fixed Deposits' && <Landmark className="w-6 h-6 text-muted-foreground" />}
-                            {item.name === 'Stocks' && <CandlestickChart className="w-6 h-6 text-muted-foreground" />}
-                            {item.name === 'Crypto' && <DollarSign className="w-6 h-6 text-muted-foreground" />}
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-muted/50 rounded-lg" style={{ color: item.fill }}>
+                            {item.name === 'Fixed Deposits' && <Landmark className="w-6 h-6" />}
+                            {item.name === 'Stocks' && <CandlestickChart className="w-6 h-6" />}
+                            {item.name === 'Crypto' && <DollarSign className="w-6 h-6" />}
                         </div>
                         <div>
-                            <p className="font-medium">{item.name}</p>
+                            <p className="font-semibold text-card-foreground">{item.name}</p>
                             <p className="text-xs text-muted-foreground">Total Value</p>
                         </div>
                     </div>
-                    <span className="font-bold text-xl">₹{item.value.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-xl text-card-foreground">₹{item.value.toLocaleString('en-IN')}</span>
                 </div>
              ))}
           </CardContent>
@@ -451,5 +427,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

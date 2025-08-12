@@ -3,16 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Bot,
   Home,
-  LineChart,
   LogOut,
-  Package,
   Package2,
-  Settings,
-  ShoppingCart,
   Upload,
-  Users2,
   List,
   Gift,
 } from "lucide-react";
@@ -30,7 +24,6 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
   children,
@@ -76,8 +69,8 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-            <Package2 className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">SpendWise</span>
+            <Package2 className="h-8 w-8 text-sidebar-primary" />
+            <span className="font-semibold text-lg text-sidebar-foreground">SpendWise</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -128,16 +121,16 @@ export default function DashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
+        <header className="flex h-16 items-center gap-4 border-b bg-background px-6 sticky top-0 z-30">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
-            <h1 className="text-lg font-semibold">{getPageTitle()}</h1>
+            <h1 className="text-xl font-semibold text-foreground">{getPageTitle()}</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{user.email}</span>
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6 lg:p-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
