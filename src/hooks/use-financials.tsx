@@ -163,7 +163,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (savedReserves) {
-          setReserves(JSON.parse(savedReserves));
+          const parsedReserves = JSON.parse(savedReserves);
+          // Merge with initialReserves to ensure all keys are present
+          setReserves({ ...initialReserves, ...parsedReserves });
       } else {
           setReserves(initialReserves);
       }
@@ -355,12 +357,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const availableMonths = useMemo(() => Object.keys(monthlyData).sort(), [monthlyData]);
   
   const monthlySummary = useMemo(() => {
-    const totalReserves = reserves.fixedDeposits.reduce((s, i) => s + i.amount, 0) 
-        + reserves.stocks.reduce((s, i) => s + i.amount, 0) 
-        + reserves.crypto.reduce((s, i) => s + i.amount, 0)
-        + reserves.mutualFunds.reduce((s, i) => s + i.amount, 0)
-        + reserves.elss.reduce((s, i) => s + i.amount, 0)
-        + reserves.nps + reserves.pf + reserves.gold + reserves.esop;
+    const totalReserves = (reserves.fixedDeposits?.reduce((s, i) => s + i.amount, 0) || 0)
+        + (reserves.stocks?.reduce((s, i) => s + i.amount, 0) || 0)
+        + (reserves.crypto?.reduce((s, i) => s + i.amount, 0) || 0)
+        + (reserves.mutualFunds?.reduce((s, i) => s + i.amount, 0) || 0)
+        + (reserves.elss?.reduce((s, i) => s + i.amount, 0) || 0)
+        + (reserves.nps || 0) + (reserves.pf || 0) + (reserves.gold || 0) + (reserves.esop || 0);
 
     return availableMonths.map(monthKey => {
         const data = monthlyData[monthKey];
