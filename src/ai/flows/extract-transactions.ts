@@ -87,7 +87,12 @@ const extractTransactionsFlow = ai.defineFlow(
     ];
 
     const sanitizedTransactions = output.transactions.filter(tx => {
-      return requiredKeys.every(key => tx[key] !== undefined && tx[key] !== null && tx[key] !== '');
+      const hasAllKeys = requiredKeys.every(key => tx[key] !== undefined && tx[key] !== null && tx[key] !== '');
+      if (!hasAllKeys) {
+        console.warn('Dropping incomplete transaction:', tx);
+        return false;
+      }
+      return true;
     });
     
     return { transactions: sanitizedTransactions };
