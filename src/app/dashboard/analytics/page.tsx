@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/chart";
 import { Bar, BarChart, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { useFinancials } from '@/hooks/use-financials';
-import { format, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, getYear, getMonth, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -26,20 +26,31 @@ const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--c
 
 
 export default function AnalyticsPage() {
-    const { monthlySummary, isDataLoaded, currentMonthData } = useFinancials();
+    const { monthlySummary, isDataLoaded, monthlyData, currentMonth } = useFinancials();
     const [yearType, setYearType] = useState<YearType>('calendar');
     const [selectedYear, setSelectedYear] = useState<string>(String(getYear(new Date())));
 
+    const currentMonthKey = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1), "yyyy-MM-01"), [currentMonth]);
+    const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
+
+
     const availableYears = useMemo(() => {
         if (!isDataLoaded) return [];
-        const years = new Set(monthlySummary.map(d => String(getYear(new Date(d.month)))));
+        const years = new Set(Object.keys(monthlyData).map(d => String(getYear(new Date(d)))));
         return Array.from(years).sort((a,b) => Number(b) - Number(a));
-    }, [monthlySummary, isDataLoaded]);
+    }, [monthlyData, isDataLoaded]);
+    
+    // Set default year if availableYears is loaded
+    useMemo(() => {
+        if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+            setSelectedYear(availableYears[0]);
+        }
+    }, [availableYears, selectedYear]);
 
     const filteredData = useMemo(() => {
         if (!isDataLoaded) return [];
 
-        return monthlySummary.filter(d => {
+        const yearData = monthlySummary.filter(d => {
             const date = new Date(d.month);
             const month = getMonth(date); // 0-11
             const year = getYear(date);
@@ -51,12 +62,41 @@ export default function AnalyticsPage() {
                 return String(financialYear) === selectedYear;
             }
         });
-    }, [monthlySummary, yearType, selectedYear, isDataLoaded]);
-    
-     const categorySpendingData = useMemo(() => {
-        if (!isDataLoaded) return [];
 
-        const spending = currentMonthData.transactions
+        // Add monthly expenses to the data
+        return yearData.map(summary => {
+            const monthData = monthlyData[summary.month];
+            const totalExpenses = monthData?.transactions
+                .filter(t => t.type === 'DR')
+                .reduce((acc, t) => acc + t.amount, 0) || 0;
+            return {
+                ...summary,
+                expenses: totalExpenses,
+            };
+        });
+
+    }, [monthlySummary, yearType, selectedYear, isDataLoaded, monthlyData]);
+
+    const availableMonthsForSelection = useMemo(() => {
+        return Object.keys(monthlyData)
+            .filter(monthKey => {
+                 const date = new Date(monthKey);
+                 const year = getYear(date);
+                 return String(year) === selectedYear;
+            })
+            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    }, [monthlyData, selectedYear]);
+    
+     useMemo(() => {
+        if (availableMonthsForSelection.length > 0 && !availableMonthsForSelection.includes(selectedMonth)) {
+            setSelectedMonth(availableMonthsForSelection[availableMonthsForSelection.length - 1]);
+        }
+     }, [availableMonthsForSelection, selectedMonth]);
+
+    const categorySpendingData = useMemo(() => {
+        if (!isDataLoaded || !monthlyData[selectedMonth]) return [];
+
+        const spending = monthlyData[selectedMonth].transactions
             .filter(t => t.type === 'DR')
             .reduce((acc, t) => {
                 const category = t.category || 'Other';
@@ -72,7 +112,7 @@ export default function AnalyticsPage() {
             }))
             .sort((a,b) => b.total - a.total);
 
-    }, [currentMonthData.transactions, isDataLoaded]);
+    }, [selectedMonth, monthlyData, isDataLoaded]);
 
 
     if (!isDataLoaded) {
@@ -85,9 +125,9 @@ export default function AnalyticsPage() {
                 <CardHeader>
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Financial Trends</CardTitle>
+                            <CardTitle>Yearly Financial Trends</CardTitle>
                             <CardDescription>
-                                A line graph showing the trends of your Net Worth, Liquidity, and Reserves over time.
+                                Key financial metrics over the course of the selected year.
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
@@ -123,32 +163,59 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                     {filteredData.length > 0 ? (
-                        <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={filteredData}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis 
-                                    dataKey="month" 
-                                    tickFormatter={(value) => format(new Date(value), "MMM")}
-                                    padding={{ left: 20, right: 20 }}
-                                />
-                                <YAxis 
-                                    tickFormatter={(value) => `₹${value / 1000}k`}
-                                    width={80}
-                                />
-                                <RechartsTooltip 
-                                    cursor={{fill: 'hsl(var(--muted))'}}
-                                    content={<ChartTooltipContent 
-                                        className="bg-background/80 backdrop-blur-sm"
-                                        formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
-                                        labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
-                                    />}
-                                />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line dataKey="netWorth" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" />
-                                <Line dataKey="liquidity" type="monotone" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Liquidity" />
-                                <Line dataKey="reserves" type="monotone" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Reserves" />
-                            </LineChart>
-                        </ChartContainer>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                             <ChartContainer config={{}} className="h-[400px] w-full">
+                                <p className="text-sm text-center font-medium text-muted-foreground pb-4">Net Worth, Liquidity & Reserves</p>
+                                <LineChart data={filteredData}>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        tickFormatter={(value) => format(new Date(value), "MMM")}
+                                        padding={{ left: 20, right: 20 }}
+                                    />
+                                    <YAxis 
+                                        tickFormatter={(value) => `₹${value / 1000}k`}
+                                        width={80}
+                                    />
+                                    <RechartsTooltip 
+                                        cursor={{fill: 'hsl(var(--muted))'}}
+                                        content={<ChartTooltipContent 
+                                            className="bg-background/80 backdrop-blur-sm"
+                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                            labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
+                                        />}
+                                    />
+                                    <ChartLegend content={<ChartLegendContent />} />
+                                    <Line dataKey="netWorth" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" />
+                                    <Line dataKey="liquidity" type="monotone" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Liquidity" />
+                                    <Line dataKey="reserves" type="monotone" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Reserves" />
+                                </LineChart>
+                            </ChartContainer>
+                            <ChartContainer config={{}} className="h-[400px] w-full">
+                                <p className="text-sm text-center font-medium text-muted-foreground pb-4">Total Monthly Expenses</p>
+                                <LineChart data={filteredData}>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        tickFormatter={(value) => format(new Date(value), "MMM")}
+                                        padding={{ left: 20, right: 20 }}
+                                    />
+                                    <YAxis 
+                                        tickFormatter={(value) => `₹${value / 1000}k`}
+                                        width={80}
+                                    />
+                                    <RechartsTooltip 
+                                        cursor={{fill: 'hsl(var(--muted))'}}
+                                        content={<ChartTooltipContent 
+                                            className="bg-background/80 backdrop-blur-sm"
+                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                            labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
+                                        />}
+                                    />
+                                    <Line dataKey="expenses" type="monotone" stroke="hsl(var(--chart-3))" strokeWidth={2} name="Expenses" />
+                                </LineChart>
+                            </ChartContainer>
+                        </div>
                     ) : (
                          <div className="flex h-[400px] w-full items-center justify-center rounded-md border border-dashed">
                             <p className="text-muted-foreground">No data available for the selected year.</p>
@@ -159,10 +226,29 @@ export default function AnalyticsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Category Spending</CardTitle>
-                    <CardDescription>
-                        A breakdown of your expenses by category for {format(new Date(currentMonthData.month), "MMMM yyyy")}.
-                    </CardDescription>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                             <CardTitle>Category Spending</CardTitle>
+                             <CardDescription>
+                                A breakdown of your expenses by category for a selected month.
+                            </CardDescription>
+                        </div>
+                         <div className="grid gap-2">
+                               <Label>Select Month</Label>
+                               <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={availableMonthsForSelection.length === 0}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Select Month" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableMonthsForSelection.map(m => (
+                                            <SelectItem key={m} value={m}>
+                                                {format(parseISO(m), "MMMM yyyy")}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                    </div>
                 </CardHeader>
                  <CardContent>
                     {categorySpendingData.length > 0 ? (
@@ -198,4 +284,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-
