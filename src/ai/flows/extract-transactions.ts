@@ -55,6 +55,8 @@ Based on the transaction description, assign a relevant category. Common categor
 
 For the paymentMethod, use the name of the bank from the statement.
 
+IMPORTANT: Ensure that every single transaction object you return is complete and includes all required fields: date, description, amount, type, category, and paymentMethod. If the type of transaction (CR or DR) is ambiguous from the description, default to 'DR' for debits/withdrawals. Do not skip any transactions, even if their descriptions are unusual or truncated.
+
 Return the data as a structured JSON object.
 
 Statement File: {{media url=statementDataUri}}`
