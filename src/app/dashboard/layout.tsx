@@ -9,6 +9,7 @@ import {
   Upload,
   List,
   Gift,
+  User as UserIcon,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -24,6 +25,15 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function DashboardLayout({
   children,
@@ -59,24 +69,28 @@ export default function DashboardLayout({
         return "Transactions";
       case "/dashboard/wishlist":
         return "Expense Wishlist";
+      case "/dashboard/profile":
+        return "Your Profile";
       default:
         return "Dashboard";
     }
-  }
+  };
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-            <Package2 className="h-8 w-8 text-sidebar-primary" />
-            <span className="font-semibold text-lg text-sidebar-foreground">SpendWise</span>
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#C5A46D] to-amber-700" />
+            <span className="text-lg font-semibold tracking-wide text-sidebar-foreground">
+              VizBuck
+            </span>
           </div>
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+              <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
                 <Link href="/dashboard">
                   <Home />
                   Dashboard
@@ -84,7 +98,10 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === '/dashboard/transactions'}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/dashboard/transactions"}
+              >
                 <Link href="/dashboard/transactions">
                   <List />
                   Transactions
@@ -92,15 +109,21 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === '/dashboard/import'}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/dashboard/import"}
+              >
                 <Link href="/dashboard/import">
                   <Upload />
                   Import Statement
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === '/dashboard/wishlist'}>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/dashboard/wishlist"}
+              >
                 <Link href="/dashboard/wishlist">
                   <Gift />
                   Wishlist
@@ -121,13 +144,50 @@ export default function DashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 items-center gap-4 border-b bg-background px-6 sticky top-0 z-30">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
-            <h1 className="text-xl font-semibold text-foreground">{getPageTitle()}</h1>
+            <h1 className="text-xl font-semibold text-foreground">
+              {getPageTitle()}
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{user.email}</span>
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.photoURL ?? ""} alt="User avatar" />
+                    <AvatarFallback>
+                      {user.email?.[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user.displayName ?? "User"}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/profile">
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="flex-1 p-6 lg:p-8">{children}</main>

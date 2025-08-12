@@ -7,8 +7,8 @@ import { AuthProvider } from "@/hooks/use-auth";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "SpendWise - Your Personal Finance Tracker",
-  description: "Track your expenses, analyze your spending, and achieve your financial goals.",
+  title: "VizBuck - Enterprise AI that moves markets",
+  description: "VizBuck delivers secure, compliant AI automation built for global scale. Accelerate decision-making, reduce risk, and unlock operational excellence across your portfolio.",
 };
 
 export default function RootLayout({

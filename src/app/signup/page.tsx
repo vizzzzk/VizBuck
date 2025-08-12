@@ -44,8 +44,12 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm border-white/20 bg-card">
         <CardHeader>
+           <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#C5A46D] to-amber-700" />
+              <span className="text-2xl font-semibold tracking-wide">VizBuck</span>
+          </div>
           <CardTitle className="text-2xl">Sign Up</CardTitle>
           <CardDescription>
             Enter your information to create an account
@@ -83,7 +87,7 @@ export default function SignupPage() {
           </form>
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
-            <Link href="/login" className="underline">
+            <Link href="/login" className="underline text-primary">
               Login
             </Link>
           </div>
