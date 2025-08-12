@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -87,7 +88,7 @@ export default function SignupPage() {
           </form>
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
-            <Link href="/login" className="underline text-primary">
+            <Link href="/" className="underline text-primary">
               Login
             </Link>
           </div>

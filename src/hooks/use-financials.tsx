@@ -51,10 +51,28 @@ export interface Crypto {
     amount: number;
 }
 
+export interface MutualFund {
+    id: number;
+    name: string;
+    amount: number;
+}
+
+export interface Elss {
+    id: number;
+    name: string;
+    amount: number;
+}
+
 export interface Reserves {
     fixedDeposits: FixedDeposit[];
     stocks: Stock[];
     crypto: Crypto[];
+    mutualFunds: MutualFund[];
+    elss: Elss[];
+    nps: number;
+    pf: number;
+    gold: number;
+    esop: number;
 }
 
 export interface Transaction {
@@ -95,6 +113,12 @@ const initialReserves: Reserves = {
     fixedDeposits: [{id: 1, institution: 'HDFC Bank', amount: 500000}],
     stocks: [{id: 1, broker: 'Zerodha', amount: 750000}],
     crypto: [{id: 1, exchange: 'WazirX', amount: 125000}],
+    mutualFunds: [],
+    elss: [],
+    nps: 0,
+    pf: 0,
+    gold: 0,
+    esop: 0,
 };
 
 
@@ -128,23 +152,28 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
   // Load from localStorage on initial render
   useEffect(() => {
-    const savedMonthlyData = localStorage.getItem("monthlyData");
-    const savedReserves = localStorage.getItem("reserves");
-    
-    if (savedMonthlyData) {
-        const parsedData = JSON.parse(savedMonthlyData);
-        setMonthlyData(parsedData);
-    } else {
+    try {
+      const savedMonthlyData = localStorage.getItem("monthlyData");
+      const savedReserves = localStorage.getItem("reserves");
+      
+      if (savedMonthlyData && Object.keys(JSON.parse(savedMonthlyData)).length > 0) {
+          setMonthlyData(JSON.parse(savedMonthlyData));
+      } else {
+          setMonthlyData(createInitialState());
+      }
+
+      if (savedReserves) {
+          setReserves(JSON.parse(savedReserves));
+      } else {
+          setReserves(initialReserves);
+      }
+    } catch (error) {
+        console.error("Failed to parse from localStorage", error);
         setMonthlyData(createInitialState());
-    }
-
-    if (savedReserves) {
-        setReserves(JSON.parse(savedReserves));
-    } else {
         setReserves(initialReserves);
+    } finally {
+        setIsDataLoaded(true);
     }
-
-    setIsDataLoaded(true);
   }, []);
 
   // Save to localStorage whenever data changes
@@ -170,7 +199,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
       const lastMonthData = monthlyData[lastMonthKey];
 
       let openingBalance = 0;
-      let newBankAccounts = lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc, balance: acc.balance})) || [];
+      let newBankAccounts: BankAccount[] = lastMonthData?.liquidity.bankAccounts.map(acc => ({...acc, balance: acc.balance})) || [];
       let newCash = lastMonthData?.liquidity.cash || 0;
 
       if (lastMonthData) {
@@ -189,6 +218,13 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         openingBalance = liquidAssets - totalDues;
         newBankAccounts = bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [];
         newCash = closingCash;
+      } else {
+        // This is the very first month ever, don't calculate based on previous.
+        const firstMonthData = monthlyData[Object.keys(monthlyData).sort()[0]];
+        if (firstMonthData) {
+           newBankAccounts = firstMonthData.liquidity.bankAccounts.map(acc => ({...acc}));
+           newCash = firstMonthData.liquidity.cash;
+        }
       }
 
       const newMonthData: MonthlyFinancials = {
@@ -298,9 +334,9 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             month: nextMonthKey,
             liquidity: {
                 openingBalance: closingBalance,
-                bankAccounts: bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, balance: closingBankBalance / bankAccounts.length})) : [],
+                bankAccounts: bankAccounts.length > 0 ? bankAccounts.map(b => ({...b, id: b.id, name: b.name, balance: closingBankBalance / bankAccounts.length})) : [],
                 cash: closingCash, 
-                creditCards: creditCards.map(c => ({...c, due: 0})),
+                creditCards: creditCards.map(c => ({...c, id: c.id, name: c.name, due: 0})),
                 receivables: [],
             },
             transactions: nextMonthExists ? prev[nextMonthKey].transactions : [],
@@ -319,7 +355,12 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
   const availableMonths = useMemo(() => Object.keys(monthlyData).sort(), [monthlyData]);
   
   const monthlySummary = useMemo(() => {
-    const totalReserves = reserves.fixedDeposits.reduce((s, i) => s + i.amount, 0) + reserves.stocks.reduce((s, i) => s + i.amount, 0) + reserves.crypto.reduce((s, i) => s + i.amount, 0);
+    const totalReserves = reserves.fixedDeposits.reduce((s, i) => s + i.amount, 0) 
+        + reserves.stocks.reduce((s, i) => s + i.amount, 0) 
+        + reserves.crypto.reduce((s, i) => s + i.amount, 0)
+        + reserves.mutualFunds.reduce((s, i) => s + i.amount, 0)
+        + reserves.elss.reduce((s, i) => s + i.amount, 0)
+        + reserves.nps + reserves.pf + reserves.gold + reserves.esop;
 
     return availableMonths.map(monthKey => {
         const data = monthlyData[monthKey];

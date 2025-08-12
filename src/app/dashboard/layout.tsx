@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -10,6 +11,7 @@ import {
   List,
   Gift,
   User as UserIcon,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,13 +51,13 @@ export default function DashboardLayout({
 
   React.useEffect(() => {
     if (!user) {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [user, router]);
 
   const handleLogout = async () => {
     await logout();
-    router.push("/login");
+    router.push("/");
   };
 
   if (!user) {
@@ -66,6 +68,8 @@ export default function DashboardLayout({
     switch (pathname) {
       case "/dashboard":
         return "Dashboard";
+      case "/dashboard/analytics":
+        return "Analytics";
       case "/dashboard/import":
         return "Import Statement";
       case "/dashboard/transactions":
@@ -98,6 +102,17 @@ export default function DashboardLayout({
                 <Link href="/dashboard">
                   <Home />
                   Dashboard
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/dashboard/analytics"}
+              >
+                <Link href="/dashboard/analytics">
+                  <LineChart />
+                  Analytics
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
