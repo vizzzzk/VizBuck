@@ -27,13 +27,24 @@ import {
 import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 export default function DashboardPage() {
   const { 
     currentMonthData,
     isDataLoaded,
     monthlySummary,
-    closeMonth
+    closeMonth,
+    setCurrentMonth,
+    currentMonth,
+    availableMonths,
   } = useFinancials();
   const { toast } = useToast();
 
@@ -73,11 +84,18 @@ export default function DashboardPage() {
           description: "The current month has been closed and a new one has been opened."
       });
   }
+
+  const handleMonthChange = (value: string) => {
+      const [year, month] = value.split("-");
+      setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
+  };
   
   if (!isDataLoaded) {
       return <div className="flex h-[calc(100vh-8rem)] items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
   }
   
+  const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header with actions */}
@@ -86,7 +104,21 @@ export default function DashboardPage() {
                 <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
                 <p className="text-gray-600">Overview of your financial status.</p>
             </div>
-            <Button onClick={handleCloseMonth}>Close Month & Advance</Button>
+            <div className="flex items-center gap-2">
+                 <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue>
+                            {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableMonths.map(m => (
+                            <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleCloseMonth}>Close Month & Advance</Button>
+            </div>
         </div>
       
       {/* Balance and Stats */}
