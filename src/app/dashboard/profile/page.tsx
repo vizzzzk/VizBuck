@@ -81,9 +81,14 @@ export default function ProfilePage() {
     const handlePasswordReset = async () => {
         if (!user?.email) return;
 
+        const actionCodeSettings = {
+            url: `${window.location.origin}/login`,
+            handleCodeInApp: true,
+        };
+
         setIsSendingReset(true);
         try {
-            await sendPasswordResetEmail(auth, user.email);
+            await sendPasswordResetEmail(auth, user.email, actionCodeSettings);
             toast({
                 title: "Password Reset Email Sent",
                 description: `An email has been sent to ${user.email} with instructions.`,
