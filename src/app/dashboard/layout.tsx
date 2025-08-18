@@ -99,9 +99,9 @@ export default function DashboardLayout({
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#C5A46D] to-amber-700" />
+              <div className="h-8 w-8 rounded-lg bg-foreground" />
               <span className="text-lg font-semibold tracking-wide text-sidebar-foreground">
-                VizBuck
+                Webot
               </span>
             </div>
           </SidebarHeader>

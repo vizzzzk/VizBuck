@@ -44,12 +44,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-white/20 bg-card">
+    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+      <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#C5A46D] to-amber-700" />
-              <span className="text-2xl font-semibold tracking-wide">VizBuck</span>
+              <div className="h-10 w-10 rounded-lg bg-foreground" />
+              <span className="text-2xl font-semibold tracking-wide text-foreground">Webot</span>
           </div>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
