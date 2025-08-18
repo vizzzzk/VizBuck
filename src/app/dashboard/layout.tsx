@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   LineChart,
   Wallet,
-  DollarSign
+  DollarSign,
+  Edit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -83,18 +84,15 @@ export default function DashboardLayout({
 
   return (
     <FinancialsProvider>
-      <div className="min-h-screen bg-gray-50 text-gray-800">
-        <div className="bg-white rounded-lg shadow-sm">
-        <header className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="bg-background">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
             <div className="flex items-center">
                 <div className="flex items-center mr-8">
-                    <div className="bg-primary text-primary-foreground rounded-md p-2 mr-2">
+                    <div className="bg-primary/10 text-primary rounded-md p-2 mr-3">
                         <DollarSign className="h-5 w-5" />
                     </div>
-                    <span className="font-bold text-xl text-gray-800">VizBot</span>
-                </div>
-                 <div className="flex items-center">
-                    <span className="mr-2">Welcome back, {user.displayName?.split(' ')[0] || 'User'} 👋</span>
+                    <span className="font-bold text-xl">VizBot</span>
                 </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -127,10 +125,10 @@ export default function DashboardLayout({
             </div>
         </header>
         <div className="flex">
-          <aside className="w-64 border-r bg-white">
+          <aside className="w-64 border-r border-border/50 bg-background">
             <div className="p-4">
               <div className="mb-6">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 px-3">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-3">
                   MAIN MENU
                 </h3>
                 <ul className="space-y-1">
@@ -169,9 +167,9 @@ export default function DashboardLayout({
             </div>
           </aside>
 
-          <main className="flex-1 p-6 relative">
+          <main className="flex-1 p-6 relative bg-muted/20">
              {isLoading && (
-                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
               )}

@@ -4,7 +4,11 @@
 import * as React from "react";
 import { useMemo } from "react";
 import {
-    LineChart as LineChartIcon,
+    Landmark,
+    TrendingUp,
+    Diamond,
+    Banknote,
+    ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +23,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart";
-import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -47,8 +49,8 @@ export default function DashboardPage() {
   } = useFinancials();
   const { toast } = useToast();
 
-  const { netWorth, closingBalance, openingBalance, totalReserves } = useMemo(() => {
-    if (!isDataLoaded || !currentMonthData) return { netWorth: 0, closingBalance: 0, openingBalance: 0, totalReserves: 0 };
+  const { netWorth, closingBalance, openingBalance, totalReserves, liquidityBreakdown, totalLiquidity } = useMemo(() => {
+    if (!isDataLoaded || !currentMonthData) return { netWorth: 0, closingBalance: 0, openingBalance: 0, totalReserves: 0, liquidityBreakdown: [], totalLiquidity: 0 };
     const { liquidity, transactions, reserves: monthReserves } = currentMonthData;
 
     const totalBankBalance = liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
@@ -68,11 +70,20 @@ export default function DashboardPage() {
     const liquidAssets = closingBankBalance + closingCash + totalReceivables;
     const closingLiquidityBalance = liquidAssets - totalCreditCardDues;
     
+    const breakdown = [
+      { name: 'Bank Balance', value: closingBankBalance, fill: 'hsl(var(--chart-1))' },
+      { name: 'Cash', value: closingCash, fill: 'hsl(var(--chart-2))'},
+      { name: 'Receivables', value: totalReceivables, fill: 'hsl(var(--chart-3))' },
+      { name: 'Credit Card Dues', value: totalCreditCardDues, fill: 'hsl(var(--chart-4))' },
+    ];
+    
     return { 
         netWorth: closingLiquidityBalance + totalReservesValue, 
         closingBalance: closingLiquidityBalance,
         openingBalance: liquidity.openingBalance, 
-        totalReserves: totalReservesValue 
+        totalReserves: totalReservesValue,
+        liquidityBreakdown: breakdown,
+        totalLiquidity: liquidAssets
     };
   }, [currentMonthData, isDataLoaded]);
 
@@ -89,39 +100,25 @@ export default function DashboardPage() {
       setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
   };
   
-  if (!isDataLoaded) {
+  if (!isDataLoaded || !currentMonthData) {
       return null;
   }
   
   const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
-
-  const chartConfig = {
-      netWorth: {
-          label: "Net Worth",
-          color: "hsl(var(--chart-1))",
-      },
-      liquidity: {
-          label: "Liquidity",
-          color: "hsl(var(--chart-2))",
-      },
-      reserves: {
-          label: "Reserves",
-          color: "hsl(var(--chart-3))",
-      },
-  };
+  const displayMonth = format(new Date(formattedCurrentMonth), "MMMM yyyy");
 
   return (
     <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
-            <div>
-                <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-                <p className="text-gray-600">Overview of your financial status for <span className="font-semibold text-primary">{format(new Date(formattedCurrentMonth), "MMMM yyyy")}</span>. <Link href="/dashboard/wallets" className="text-sm text-primary hover:underline">Edit Wallet Data</Link></p>
+            <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-semibold">Financial Overview</h1>
+                <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">{displayMonth}</span>
             </div>
             <div className="flex items-center gap-2">
                  <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue>
-                            {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
+                            {displayMonth}
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -130,85 +127,120 @@ export default function DashboardPage() {
                         ))}
                     </SelectContent>
                 </Select>
-                <Button onClick={handleCloseMonth}>Close Month & Advance</Button>
+                <Button onClick={handleCloseMonth}><ArrowRight className="mr-2 h-4 w-4" />Close Month & Advance</Button>
+                 <Button asChild variant="outline">
+                    <Link href="/dashboard/wallets">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Assets
+                    </Link>
+                </Button>
             </div>
         </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
-             <CardTitle className="text-sm font-medium text-gray-500">Net Worth</CardTitle>
-             <div className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
+             <CardTitle className="text-sm font-medium text-muted-foreground">Net Worth</CardTitle>
+             <div className="text-3xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground pt-1">Total value of your assets & reserves</p>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-500">Opening Balance</CardTitle>
-            <div className="text-2xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Opening Balance</CardTitle>
+            <div className="text-3xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground pt-1">As of start of {displayMonth}</p>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-500">Closing Balance (Liquid)</CardTitle>
-            <div className="text-2xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Closing Balance (Liquid)</CardTitle>
+            <div className="text-3xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground pt-1">After all expenses</p>
           </CardHeader>
         </Card>
         <Card>
            <CardHeader>
-             <CardTitle className="text-sm font-medium text-gray-500">Reserves & Investments</CardTitle>
-             <div className="text-2xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
+             <CardTitle className="text-sm font-medium text-muted-foreground">Total Reserves</CardTitle>
+             <div className="text-3xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
+             <p className="text-xs text-muted-foreground pt-1">FDs, Stocks, & Crypto</p>
           </CardHeader>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-          <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>Financial Overview</CardTitle>
-                <CardDescription>A summary of your key financial metrics over time.</CardDescription>
+                <CardTitle>Liquidity Breakdown</CardTitle>
+                <CardDescription>Your current assets vs. liabilities for {displayMonth}.</CardDescription>
             </CardHeader>
             <CardContent>
-                {monthlySummary.length > 1 ? (
-                     <ChartContainer config={chartConfig} className="h-[400px] w-full">
-                        <ComposedChart data={monthlySummary}>
-                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                            <XAxis 
-                                dataKey="month" 
-                                tickFormatter={(value) => format(new Date(value), "MMM yy")}
-                                padding={{ left: 20, right: 20 }}
-                            />
-                            <YAxis 
-                                yAxisId="left"
-                                tickFormatter={(value) => `₹${value / 1000}k`}
-                                width={80}
-                            />
-                             <YAxis 
-                                yAxisId="right"
-                                orientation="right"
-                                tickFormatter={(value) => `₹${value / 1000}k`}
-                                width={80}
-                            />
-                            <RechartsTooltip 
-                                cursor={{fill: 'hsl(var(--muted))'}}
-                                content={<ChartTooltipContent 
-                                    className="bg-background/80 backdrop-blur-sm"
-                                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name as keyof typeof chartConfig]}
-                                    labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
-                                />}
-                            />
-                            <ChartLegend content={<ChartLegendContent />} />
-                            <Bar dataKey="liquidity" yAxisId="left" fill="var(--color-liquidity)" name="Liquidity" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="reserves" yAxisId="left" fill="var(--color-reserves)" name="Reserves" radius={[4, 4, 0, 0]}/>
-                            <Line dataKey="netWorth" yAxisId="right" type="monotone" stroke="var(--color-netWorth)" strokeWidth={2} name="Net Worth" dot={false} />
-                        </ComposedChart>
-                    </ChartContainer>
-                ) : (
-                    <div className="h-80 w-full flex flex-col items-center justify-center bg-gray-100 rounded-lg">
-                        <LineChartIcon className="h-12 w-12 text-gray-400 mb-4" />
-                        <p className="text-gray-500">Not enough data to display a chart.</p>
-                        <p className="text-sm text-gray-400">Please add transactions for multiple months to see your trends.</p>
+                 <ChartContainer 
+                    config={{}} 
+                    className="mx-auto aspect-square h-[250px]"
+                 >
+                    <PieChart>
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Pie
+                            data={liquidityBreakdown}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={60}
+                            strokeWidth={5}
+                        >
+                            {liquidityBreakdown.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill} />
+                            ))}
+                        </Pie>
+                    </PieChart>
+                </ChartContainer>
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-3">
+             <CardHeader>
+                <CardTitle>Reserves & Investments</CardTitle>
+                <CardDescription>Your long-term asset allocation (continuous).</CardDescription>
+            </CardHeader>
+             <CardContent className="grid grid-cols-2 gap-6 pt-6">
+                <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 text-primary p-3 rounded-lg">
+                        <Landmark className="h-6 w-6" />
                     </div>
-                )}
+                    <div>
+                        <p className="text-sm text-muted-foreground">Fixed Deposits</p>
+                        <p className="text-xl font-bold">₹{currentMonthData.reserves.fixedDeposits.reduce((s,i) => s + i.amount, 0).toLocaleString('en-IN')}</p>
+                    </div>
+                </div>
+                 <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 text-primary p-3 rounded-lg">
+                        <TrendingUp className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Stocks</p>
+                        <p className="text-xl font-bold">₹{currentMonthData.reserves.stocks.reduce((s,i) => s + i.amount, 0).toLocaleString('en-IN')}</p>
+                    </div>
+                </div>
+                 <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 text-primary p-3 rounded-lg">
+                        <Diamond className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Crypto</p>
+                        <p className="text-xl font-bold">₹{currentMonthData.reserves.crypto.reduce((s,i) => s + i.amount, 0).toLocaleString('en-IN')}</p>
+                    </div>
+                </div>
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 text-primary p-3 rounded-lg">
+                        <Banknote className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Mutual Funds</p>
+                        <p className="text-xl font-bold">₹{currentMonthData.reserves.mutualFunds.reduce((s,i) => s + i.amount, 0).toLocaleString('en-IN')}</p>
+                    </div>
+                </div>
             </CardContent>
           </Card>
       </div>
