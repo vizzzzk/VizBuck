@@ -74,7 +74,9 @@ export default function ProfilePage() {
 
             // Force a reload of the user to get the latest profile info
             await user.reload();
-            setPhotoURL(user.photoURL ?? ""); // update state with the final URL
+            if (newPhotoURL) {
+                setPhotoURL(newPhotoURL);
+            }
 
             toast({
                 title: "Profile Updated",
