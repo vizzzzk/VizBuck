@@ -9,7 +9,9 @@ import {
     Diamond,
     Banknote,
     ArrowRight,
-    Edit
+    Edit,
+    ArrowUp,
+    ArrowDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +28,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -36,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from 'next/link';
+import { cn } from "@/lib/utils";
 
 
 export default function DashboardPage() {
@@ -50,24 +53,32 @@ export default function DashboardPage() {
   } = useFinancials();
   const { toast } = useToast();
 
-  const { netWorth, closingBalance, openingBalance, totalReserves, liquidityBreakdown, totalLiquidity } = useMemo(() => {
-    if (!isDataLoaded || !currentMonthData) return { netWorth: 0, closingBalance: 0, openingBalance: 0, totalReserves: 0, liquidityBreakdown: [], totalLiquidity: 0 };
+  const formattedCurrentMonth = useMemo(() => format(new Date(currentMonth.year, currentMonth.month - 1), "yyyy-MM-01"), [currentMonth]);
+
+  const {
+      netWorth,
+      closingBalance,
+      openingBalance,
+      totalReserves,
+      liquidityBreakdown,
+      analytics
+  } = useMemo(() => {
+    if (!isDataLoaded || !currentMonthData || !monthlySummary.length) {
+        return { netWorth: 0, closingBalance: 0, openingBalance: 0, totalReserves: 0, liquidityBreakdown: [], analytics: {} };
+    }
     const { liquidity, transactions, reserves: monthReserves } = currentMonthData;
 
+    // --- Current Month Calculations ---
     const totalBankBalance = liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
     const totalCreditCardDues = liquidity.creditCards.reduce((sum, card) => sum + Number(card.due || 0), 0);
     const totalReceivables = liquidity.receivables.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const totalCash = Number(liquidity.cash || 0);
-    
     const totalReservesValue = Object.values(monthReserves).flat().reduce((sum, item) => sum + (typeof item === 'number' ? item : item.amount || 0), 0);
-    
     const credits = transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
     const expensesFromBank = transactions.filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
     const closingBankBalance = totalBankBalance + credits - expensesFromBank;
-
     const expensesFromCash = transactions.filter(t => t.paymentMethod === 'Cash' && t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
     const closingCash = totalCash - expensesFromCash; 
-    
     const liquidAssets = closingBankBalance + closingCash + totalReceivables;
     const closingLiquidityBalance = liquidAssets - totalCreditCardDues;
     
@@ -75,18 +86,44 @@ export default function DashboardPage() {
       { name: 'Bank Balance', value: closingBankBalance, fill: 'hsl(var(--chart-1))' },
       { name: 'Cash', value: closingCash, fill: 'hsl(var(--chart-2))'},
       { name: 'Receivables', value: totalReceivables, fill: 'hsl(var(--chart-3))' },
-      { name: 'Credit Card Dues', value: totalCreditCardDues, fill: 'hsl(var(--chart-4))' },
-    ];
+      { name: 'Credit Card Dues', value: -totalCreditCardDues, fill: 'hsl(var(--chart-4))' },
+    ].filter(item => item.value !== 0);
+
+    const currentNetWorth = closingLiquidityBalance + totalReservesValue;
     
+    // --- Previous Month Calculations for Analytics ---
+    const currentMonthDate = new Date(formattedCurrentMonth);
+    const prevMonthDate = subMonths(currentMonthDate, 1);
+    const prevMonthKey = format(prevMonthDate, "yyyy-MM-01");
+    const prevMonthSummary = monthlySummary.find(s => s.month === prevMonthKey);
+
+    const calculateChange = (current: number, previous: number | undefined) => {
+        if (previous === undefined || previous === 0) return { percent: null, isPositive: null };
+        const change = ((current - previous) / previous) * 100;
+        return {
+            percent: Math.abs(change).toFixed(1),
+            isPositive: change >= 0
+        };
+    };
+    
+    const netWorthChange = calculateChange(currentNetWorth, prevMonthSummary?.netWorth);
+    const reservesChange = calculateChange(totalReservesValue, prevMonthSummary?.reserves);
+    const closingBalanceChange = calculateChange(closingLiquidityBalance, prevMonthSummary?.liquidity);
+
     return { 
-        netWorth: closingLiquidityBalance + totalReservesValue, 
+        netWorth: currentNetWorth, 
         closingBalance: closingLiquidityBalance,
         openingBalance: liquidity.openingBalance, 
         totalReserves: totalReservesValue,
         liquidityBreakdown: breakdown,
-        totalLiquidity: liquidAssets
+        analytics: {
+            netWorth: netWorthChange,
+            reserves: reservesChange,
+            closingBalance: closingBalanceChange,
+            openingBalance: null // Cannot be compared as it is a point in time
+        }
     };
-  }, [currentMonthData, isDataLoaded]);
+  }, [currentMonthData, isDataLoaded, monthlySummary, formattedCurrentMonth]);
 
   const handleCloseMonth = () => {
       closeMonth();
@@ -105,8 +142,21 @@ export default function DashboardPage() {
       return null;
   }
   
-  const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
   const displayMonth = format(new Date(formattedCurrentMonth), "MMMM yyyy");
+
+  const renderAnalytics = (data: { percent: string | null; isPositive: boolean | null } | null) => {
+    if (!data || data.percent === null) {
+      return <p className="text-xs text-muted-foreground pt-1 invisible">No change data</p>;
+    }
+    const colorClass = data.isPositive ? 'text-green-500' : 'text-red-500';
+    const Icon = data.isPositive ? ArrowUp : ArrowDown;
+    return (
+      <p className={cn("text-xs text-muted-foreground pt-1 flex items-center gap-1", colorClass)}>
+        <Icon className="h-3 w-3" />
+        {data.percent}% from last month
+      </p>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -143,7 +193,7 @@ export default function DashboardPage() {
           <CardHeader>
              <CardTitle className="text-sm font-medium text-muted-foreground">Net Worth</CardTitle>
              <div className="text-3xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground pt-1">Total value of your assets & reserves</p>
+             {renderAnalytics(analytics.netWorth)}
           </CardHeader>
         </Card>
         <Card>
@@ -157,14 +207,14 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">Closing Balance (Liquid)</CardTitle>
             <div className="text-3xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground pt-1">After all expenses</p>
+             {renderAnalytics(analytics.closingBalance)}
           </CardHeader>
         </Card>
         <Card>
            <CardHeader>
              <CardTitle className="text-sm font-medium text-muted-foreground">Total Reserves</CardTitle>
              <div className="text-3xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground pt-1">FDs, Stocks, & Crypto</p>
+             {renderAnalytics(analytics.reserves)}
           </CardHeader>
         </Card>
       </div>
@@ -183,7 +233,10 @@ export default function DashboardPage() {
                     <PieChart>
                         <ChartTooltip
                             cursor={false}
-                            content={<ChartTooltipContent hideLabel />}
+                            content={<ChartTooltipContent 
+                                hideLabel 
+                                formatter={(value, name) => [`₹${Math.abs(Number(value)).toLocaleString('en-IN')}`, name as string]}
+                            />}
                         />
                         <Pie
                             data={liquidityBreakdown}
