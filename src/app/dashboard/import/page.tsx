@@ -44,8 +44,8 @@ export default function ImportPage() {
     };
 
     const handleExtract = async () => {
-        if (!file || !bankName) {
-            toast({ variant: "destructive", title: "Missing information", description: "Please select a PDF file and enter the bank name." });
+        if (!file) {
+            toast({ variant: "destructive", title: "Missing File", description: "Please select a PDF file to extract transactions from." });
             return;
         }
 
@@ -57,7 +57,7 @@ export default function ImportPage() {
             reader.onload = async (event) => {
                 const pdfDataUri = event.target?.result as string;
                 try {
-                    const result = await extractTransactions({ pdfDataUri, bankName });
+                    const result = await extractTransactions({ pdfDataUri, bankName: bankName || "Unknown Bank" });
                     if (result && result.transactions.length > 0) {
                         setExtractedData(result);
                         setStep('review');
@@ -113,9 +113,9 @@ export default function ImportPage() {
          <CardContent>
             <div className="space-y-4">
                 <div className="grid gap-2">
-                    <Label htmlFor="bank-name">Bank Name</Label>
+                    <Label htmlFor="bank-name">Bank Name (Optional)</Label>
                     <Input id="bank-name" placeholder="e.g., HDFC Bank, ICICI Bank" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-                    <p className="text-sm text-muted-foreground">This provides context for the AI to correctly label the payment source.</p>
+                    <p className="text-sm text-muted-foreground">Providing a name helps the AI, but it can often figure it out automatically.</p>
                 </div>
                 <div className="grid gap-2">
                     <Label htmlFor="pdf-file">Bank Statement (PDF)</Label>
@@ -146,7 +146,7 @@ export default function ImportPage() {
                         <p>{error}</p>
                     </div>
                 )}
-                <Button onClick={handleExtract} disabled={!file || !bankName} className="w-full">
+                <Button onClick={handleExtract} disabled={!file} className="w-full">
                     <Upload className="mr-2 h-4 w-4" />
                     Extract Transactions
                 </Button>

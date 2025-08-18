@@ -26,7 +26,7 @@ const ExtractTransactionsInputSchema = z.object({
     .describe(
       "A PDF file of a bank statement, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."
     ),
-    bankName: z.string().describe('The name of the bank for context. e.g., "HDFC Bank"'),
+    bankName: z.string().describe('The name of the bank for context. If not provided, try to infer it from the document content.'),
 });
 export type ExtractTransactionsInput = z.infer<typeof ExtractTransactionsInputSchema>;
 
@@ -48,7 +48,7 @@ const extractPrompt = ai.definePrompt({
   output: {schema: ExtractTransactionsOutputSchema},
   prompt: `You are an expert financial analyst. Your task is to extract all transactions from the provided bank statement PDF.
 
-The statement is from {{bankName}}. Use this as the 'paymentMethod' for all extracted transactions.
+The statement is from {{bankName}}. If {{bankName}} is 'Unknown Bank', try to find the bank's name in the document. Use the identified bank name as the 'paymentMethod' for all extracted transactions. If you cannot find the bank name, use 'Imported' as the paymentMethod.
 
 Analyze the document carefully and identify every transaction, including its date, description, amount, and whether it is a credit (CR) or debit (DR).
 - Date: Convert all dates to a consistent YYYY-MM-DD format.
