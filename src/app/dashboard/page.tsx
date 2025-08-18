@@ -5,8 +5,10 @@ import * as React from "react";
 import { useMemo } from "react";
 import {
     ArrowUpRight,
-    LineChart as LineChartIcon
+    LineChart as LineChartIcon,
+    ArrowDownRight
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,16 +26,19 @@ import {
 } from "@/components/ui/chart";
 import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { format } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
   const { 
     currentMonthData,
     isDataLoaded,
-    monthlySummary
+    monthlySummary,
+    closeMonth
   } = useFinancials();
+  const { toast } = useToast();
 
-  const { netWorth, closingBalance, totalReserves } = useMemo(() => {
-    if (!isDataLoaded || !currentMonthData) return { netWorth: 0, closingBalance: 0, totalReserves: 0 };
+  const { netWorth, closingBalance, openingBalance, totalReserves } = useMemo(() => {
+    if (!isDataLoaded || !currentMonthData) return { netWorth: 0, closingBalance: 0, openingBalance: 0, totalReserves: 0 };
     const { liquidity, transactions, reserves: monthReserves } = currentMonthData;
 
     const totalBankBalance = liquidity.bankAccounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
@@ -53,9 +58,21 @@ export default function DashboardPage() {
     const liquidAssets = closingBankBalance + closingCash + totalReceivables;
     const closingLiquidityBalance = liquidAssets - totalCreditCardDues;
     
-    return { netWorth: closingLiquidityBalance + totalReservesValue, closingBalance: closingLiquidityBalance, totalReserves: totalReservesValue };
+    return { 
+        netWorth: closingLiquidityBalance + totalReservesValue, 
+        closingBalance: closingLiquidityBalance,
+        openingBalance: liquidity.openingBalance, 
+        totalReserves: totalReservesValue 
+    };
   }, [currentMonthData, isDataLoaded]);
 
+  const handleCloseMonth = () => {
+      closeMonth();
+      toast({
+          title: "Month Closed",
+          description: "The current month has been closed and a new one has been opened."
+      });
+  }
   
   if (!isDataLoaded) {
       return <div className="flex h-[calc(100vh-8rem)] items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
@@ -63,60 +80,64 @@ export default function DashboardPage() {
   
   return (
     <div className="flex flex-col gap-6">
-      {/* Welcome Section */}
-       <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-800">Good morning, {currentMonthData.liquidity.bankAccounts[0]?.name.split(' ')[0] || 'User'}!</h1>
-          <p className="text-gray-600">Stay on top of your tasks, monitor progress, and track status.</p>
+      {/* Header with actions */}
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
+                <p className="text-gray-600">Overview of your financial status.</p>
+            </div>
+            <Button onClick={handleCloseMonth}>Close Month & Advance</Button>
         </div>
       
       {/* Balance and Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        {/* Total Balance -> Net Worth */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Net Worth */}
         <Card>
           <CardHeader>
              <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Total Balance</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-500">Net Worth</CardTitle>
                     <div className="flex items-baseline mt-1">
                         <span className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</span>
-                         <span className="ml-2 text-sm font-medium text-green-500 flex items-center">
-                            <ArrowUpRight className="mr-1 h-4 w-4" />
-                            3%
-                        </span>
                     </div>
                 </div>
              </div>
           </CardHeader>
         </Card>
-        {/* Total Earnings -> Liquid Balance */}
+        {/* Opening Balance */}
         <Card>
           <CardHeader>
              <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Liquid Balance</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-500">Opening Balance</CardTitle>
                     <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold text-orange-500">₹{closingBalance.toLocaleString('en-IN')}</span>
-                        <span className="ml-2 text-sm font-medium text-green-500 flex items-center">
-                            <ArrowUpRight className="mr-1 h-4 w-4" />
-                            5%
-                        </span>
+                        <span className="text-2xl font-bold text-gray-700">₹{openingBalance.toLocaleString('en-IN')}</span>
                     </div>
                 </div>
              </div>
           </CardHeader>
         </Card>
-         {/* Total Spending -> Reserves */}
+        {/* Closing Balance */}
+        <Card>
+          <CardHeader>
+             <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle className="text-sm font-medium text-gray-500">Closing Balance (Liquid)</CardTitle>
+                    <div className="flex items-baseline mt-1">
+                        <span className="text-2xl font-bold text-blue-600">₹{closingBalance.toLocaleString('en-IN')}</span>
+                    </div>
+                </div>
+             </div>
+          </CardHeader>
+        </Card>
+         {/* Total Reserves */}
         <Card>
            <CardHeader>
              <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Reserves & Investments</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-500">Total Reserves</CardTitle>
                     <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold text-red-500">₹{totalReserves.toLocaleString('en-IN')}</span>
-                         <span className="ml-2 text-sm font-medium text-red-500 flex items-center">
-                            <ArrowUpRight className="mr-1 h-4 w-4" />
-                            4%
-                        </span>
+                        <span className="text-2xl font-bold text-orange-500">₹{totalReserves.toLocaleString('en-IN')}</span>
                     </div>
                 </div>
              </div>
@@ -179,4 +200,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

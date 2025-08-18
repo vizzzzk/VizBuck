@@ -81,8 +81,8 @@ export default function DashboardLayout({
         return "Import Statement";
       case "/dashboard/transactions":
         return "Transactions";
-      case "/dashboard/wishlist":
-        return "Expense Wishlist";
+      case "/dashboard/wallets":
+        return "Wallets & Assets";
       case "/dashboard/profile":
         return "Your Profile";
       default:
@@ -96,14 +96,62 @@ export default function DashboardLayout({
     <FinancialsProvider>
     <Dialog>
       <div className="min-h-screen bg-gray-50 text-gray-800">
+        <div className="bg-white rounded-lg shadow-sm">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-4 border-b">
+            <div className="flex items-center">
+                <div className="flex items-center mr-8">
+                    <Flame className="text-primary h-6 w-6 mr-2" />
+                    <span className="font-bold text-xl text-gray-800">Webot</span>
+                </div>
+                 <div className="flex items-center">
+                    <span className="mr-2">Welcome back, {user.displayName?.split(' ')[0] || 'User'} 👋</span>
+                </div>
+            </div>
+            <div className="flex items-center space-x-4">
+                <Button variant="ghost" size="icon"><Bell className="text-gray-500 h-5 w-5"/></Button>
+                <DialogTrigger asChild>
+                   <Button variant="ghost" size="icon"><Mail className="text-gray-500 h-5 w-5"/></Button>
+                </DialogTrigger>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <div className="flex items-center cursor-pointer">
+                        <Avatar className="h-8 w-8 mr-2">
+                            <AvatarImage src={user.photoURL ?? ""} alt="User avatar" />
+                            <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{user.displayName ?? "User"}</span>
+                        <ChevronDown className="text-gray-500 ml-1 h-4 w-4" />
+                    </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                             <Link href="/dashboard/profile">
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                <span>Profile</span>
+                            </Link>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                             <Link href="/dashboard/profile">
+                                <Settings className="mr-2 h-4 w-4" />
+                                <span>Settings</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        </header>
         <div className="flex">
           {/* Sidebar */}
           <aside className="w-64 border-r bg-white">
             <div className="p-4">
-               <div className="flex items-center justify-center mb-8 mt-2">
-                    <Flame className="text-primary h-6 w-6 mr-2" />
-                    <span className="font-bold text-xl text-gray-800">Webot</span>
-                </div>
               <div className="relative mb-6">
                 <Input
                   type="text"
@@ -124,6 +172,12 @@ export default function DashboardLayout({
                       Dashboard
                     </Link>
                   </li>
+                  <li>
+                    <Link href="/dashboard/wallets" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/wallets') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      <Wallet className="mr-3 h-4 w-4" />
+                      Wallets
+                    </Link>
+                  </li>
                    <li>
                     <Link href="/dashboard/analytics" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/analytics') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
                       <LineChart className="mr-3 h-4 w-4" />
@@ -140,12 +194,6 @@ export default function DashboardLayout({
                     <Link href="/dashboard/import" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/import') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
                       <Upload className="mr-3 h-4 w-4" />
                       Import
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/dashboard/wishlist" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/wishlist') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
-                        <Gift className="mr-3 h-4 w-4" />
-                        Wishlist
                     </Link>
                   </li>
                 </ul>
@@ -183,55 +231,8 @@ export default function DashboardLayout({
           </aside>
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col">
-             {/* Header */}
-            <header className="flex items-center justify-between px-6 py-4 border-b bg-white">
-                <div className="flex items-center">
-                    <h1 className="text-2xl font-semibold text-gray-800">{getPageTitle()}</h1>
-                </div>
-                <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon"><Bell className="text-gray-500 h-5 w-5"/></Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <div className="flex items-center cursor-pointer">
-                            <Avatar className="h-8 w-8 mr-2">
-                                <AvatarImage src={user.photoURL ?? ""} alt="User avatar" />
-                                <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">{user.displayName ?? "User"}</span>
-                            <ChevronDown className="text-gray-500 ml-1 h-4 w-4" />
-                        </div>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <DropdownMenuLabel>
-                            <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                                {user.displayName ?? "User"}
-                            </p>
-                            <p className="text-xs leading-none text-muted-foreground">
-                                {user.email}
-                            </p>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                            <Link href="/dashboard/profile">
-                            <UserIcon className="mr-2 h-4 w-4" />
-                            <span>Profile</span>
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span>Log out</span>
-                        </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </header>
-            
-            <main className="flex-1 p-6">{children}</main>
-          </div>
+          <main className="flex-1 p-6">{children}</main>
+        </div>
         </div>
       </div>
       <DialogContent>
