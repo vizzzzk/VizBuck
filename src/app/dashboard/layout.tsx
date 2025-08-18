@@ -6,13 +6,23 @@ import Link from "next/link";
 import {
   Home,
   LogOut,
-  Package2,
   Upload,
   List,
   Gift,
   User as UserIcon,
   LineChart,
   Mail,
+  Search,
+  Settings,
+  HelpCircle,
+  ChevronDown,
+  Bell,
+  Wallet,
+  FileInvoice,
+  Repeat,
+  Tag,
+  MessageSquare,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,18 +33,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FinancialsProvider } from "@/hooks/use-financials";
-
+import { Input } from "@/components/ui/input";
 
 export default function DashboardLayout({
   children,
@@ -72,7 +70,7 @@ export default function DashboardLayout({
   if (!user) {
     return null; // or a loading spinner
   }
-
+  
   const getPageTitle = () => {
     switch (pathname) {
       case "/dashboard":
@@ -92,144 +90,150 @@ export default function DashboardLayout({
     }
   };
 
+  const isActive = (path: string) => pathname === path;
+
   return (
     <FinancialsProvider>
     <Dialog>
-      <SidebarProvider>
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
-              <div className="h-8 w-8 rounded-lg bg-foreground" />
-              <span className="text-lg font-semibold tracking-wide text-sidebar-foreground">
-                Webot
-              </span>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
-                  <Link href="/dashboard">
-                    <Home />
-                    Dashboard
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/analytics"}
-                >
-                  <Link href="/dashboard/analytics">
-                    <LineChart />
-                    Analytics
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/transactions"}
-                >
-                  <Link href="/dashboard/transactions">
-                    <List />
-                    Transactions
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/import"}
-                >
-                  <Link href="/dashboard/import">
-                    <Upload />
-                    Import Statement
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/wishlist"}
-                >
-                  <Link href="/dashboard/wishlist">
-                    <Gift />
-                    Wishlist
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <DialogTrigger asChild>
-                  <SidebarMenuButton>
-                    <Mail />
-                    Contact Developer
-                  </SidebarMenuButton>
-                </DialogTrigger>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout}>
-                  <LogOut />
-                  Logout
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset>
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-            <SidebarTrigger className="md:hidden" />
-            <div className="flex-1">
-              <h1 className="text-xl font-semibold text-foreground">
-                {getPageTitle()}
-              </h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.photoURL ?? ""} alt="User avatar" />
-                      <AvatarFallback>
-                        {user.email?.[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.displayName ?? "User"}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/profile">
-                      <UserIcon className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+      <div className="min-h-screen bg-gray-50 text-gray-800">
+        <div className="flex">
+          {/* Sidebar */}
+          <aside className="w-64 border-r bg-white">
+            <div className="p-4">
+               <div className="flex items-center justify-center mb-8 mt-2">
+                    <Flame className="text-primary h-6 w-6 mr-2" />
+                    <span className="font-bold text-xl text-gray-800">Webot</span>
+                </div>
+              <div className="relative mb-6">
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 text-sm"
+                />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 px-3">
+                  MAIN MENU
+                </h3>
+                <ul className="space-y-1">
+                  <li>
+                    <Link href="/dashboard" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      <Home className="mr-3 h-4 w-4" />
+                      Dashboard
                     </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </li>
+                   <li>
+                    <Link href="/dashboard/analytics" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/analytics') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      <LineChart className="mr-3 h-4 w-4" />
+                      Analytics
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/dashboard/transactions" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/transactions') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      <List className="mr-3 h-4 w-4" />
+                      Transactions
+                    </Link>
+                  </li>
+                   <li>
+                    <Link href="/dashboard/import" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/import') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      <Upload className="mr-3 h-4 w-4" />
+                      Import
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/dashboard/wishlist" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/wishlist') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                        <Gift className="mr-3 h-4 w-4" />
+                        Wishlist
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+              
+               <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 px-3">
+                  GENERAL
+                </h3>
+                <ul className="space-y-1">
+                  <li>
+                     <Link href="/dashboard/profile" className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${isActive('/dashboard/profile') ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                        <Settings className="mr-3 h-4 w-4" />
+                        Settings
+                    </Link>
+                  </li>
+                  <DialogTrigger asChild>
+                    <li>
+                        <button className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+                            <Mail className="mr-3 h-4 w-4" />
+                            Contact
+                        </button>
+                    </li>
+                  </DialogTrigger>
+                  <li>
+                    <button onClick={handleLogout} className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+                      <LogOut className="mr-3 h-4 w-4" />
+                      Log out
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
             </div>
-          </header>
-          <main className="flex-1 p-6 lg:p-8">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
+          </aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col">
+             {/* Header */}
+            <header className="flex items-center justify-between px-6 py-4 border-b bg-white">
+                <div className="flex items-center">
+                    <h1 className="text-2xl font-semibold text-gray-800">{getPageTitle()}</h1>
+                </div>
+                <div className="flex items-center space-x-4">
+                    <Button variant="ghost" size="icon"><Bell className="text-gray-500 h-5 w-5"/></Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <div className="flex items-center cursor-pointer">
+                            <Avatar className="h-8 w-8 mr-2">
+                                <AvatarImage src={user.photoURL ?? ""} alt="User avatar" />
+                                <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{user.displayName ?? "User"}</span>
+                            <ChevronDown className="text-gray-500 ml-1 h-4 w-4" />
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                         <DropdownMenuLabel>
+                            <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">
+                                {user.displayName ?? "User"}
+                            </p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                                {user.email}
+                            </p>
+                            </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                            <Link href="/dashboard/profile">
+                            <UserIcon className="mr-2 h-4 w-4" />
+                            <span>Profile</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleLogout}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Log out</span>
+                        </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </header>
+            
+            <main className="flex-1 p-6">{children}</main>
+          </div>
+        </div>
+      </div>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Contact Developer</DialogTitle>

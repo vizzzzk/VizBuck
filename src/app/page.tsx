@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader } from "lucide-react";
+import { Loader, Flame } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -44,12 +44,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-lg bg-foreground" />
-              <span className="text-2xl font-semibold tracking-wide text-foreground">Webot</span>
+          <div className="flex items-center justify-center gap-2 mb-4">
+              <Flame className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-bold tracking-tight text-gray-800">Webot</span>
           </div>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
