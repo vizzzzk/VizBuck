@@ -172,19 +172,40 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
 
 
   const createNewMonthData = useCallback((monthKey: string, openingBalance = 0, prevMonthData: MonthlyFinancials | null) => {
-      const baseLiquidity = prevMonthData?.liquidity;
-      const baseReserves = prevMonthData?.reserves || initialReserves;
+      
+      let newLiquidity: Liquidity;
+
+      if (prevMonthData) {
+        const { liquidity: prevLiquidity, transactions: prevTransactions } = prevMonthData;
+        const credits = prevTransactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const startingBankBalance = prevLiquidity.bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        const expensesFromBank = prevTransactions.filter(t => t.paymentMethod !== 'Cash' && t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const closingBankBalance = startingBankBalance + credits - expensesFromBank;
+
+        const expensesFromCash = prevTransactions.filter(t => t.paymentMethod === 'Cash' && t.type === 'DR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const closingCash = prevLiquidity.cash - expensesFromCash; 
+
+         newLiquidity = {
+            openingBalance,
+            bankAccounts: prevLiquidity.bankAccounts.map(b => ({ ...b, balance: closingBankBalance / (prevLiquidity.bankAccounts.length || 1) })), // Default to opening balance
+            cash: closingCash,
+            creditCards: prevLiquidity.creditCards.map(c => ({...c, due: 0})),
+            receivables: [],
+          };
+      } else {
+         newLiquidity = {
+            openingBalance: 0,
+            bankAccounts: [{ id: 1, name: 'HDFC Bank', balance: 250000 }],
+            cash: 15000,
+            creditCards: [{ id: 1, name: 'HDFC Bank', due: 50000 }],
+            receivables: [{ id: 1, source: 'Freelance Project', amount: 70000, date: new Date() }],
+        };
+      }
       
       return {
           month: monthKey,
-          liquidity: {
-              openingBalance,
-              bankAccounts: baseLiquidity?.bankAccounts.map(b => ({ ...b, balance: 0 })) || [],
-              cash: baseLiquidity?.cash || 0,
-              creditCards: baseLiquidity?.creditCards.map(c => ({...c, due: 0})) || [],
-              receivables: [],
-          },
-          reserves: baseReserves, // Carry over reserves snapshot
+          liquidity: newLiquidity,
+          reserves: prevMonthData?.reserves || initialReserves, // Carry over reserves snapshot
           transactions: [],
       };
   }, []);
@@ -237,8 +258,6 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
         if (lastMonthData) {
             const { liquidity, transactions, reserves: lastMonthReserves } = lastMonthData;
             const { bankAccounts, cash, receivables, creditCards } = liquidity;
-
-            const totalReservesValue = Object.values(lastMonthReserves).flat().reduce((sum, item) => sum + (typeof item === 'number' ? item : item.amount || 0), 0);
             
             const credits = transactions.filter(t => t.type === 'CR').reduce((sum, t) => sum + Number(t.amount || 0), 0);
             const startingBankBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -420,7 +439,7 @@ export const FinancialsProvider = ({ children }: { children: ReactNode }) => {
             month: nextMonthKey,
             liquidity: {
                 openingBalance: closingLiquidityBalance,
-                bankAccounts: bankAccounts.map(b => ({...b, id: b.id, name: b.name, balance: closingBankBalance / bankAccounts.length})),
+                bankAccounts: bankAccounts.map(b => ({...b, id: b.id, name: b.name, balance: closingBankBalance / (bankAccounts.length || 1)})),
                 cash: closingCash, 
                 creditCards: creditCards.map(c => ({...c, id: c.id, name: c.name, due: 0})),
                 receivables: [],
@@ -507,3 +526,4 @@ export const useFinancials = () => {
   }
   return context;
 };
+
