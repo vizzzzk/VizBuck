@@ -116,7 +116,7 @@ export default function AnalyticsPage() {
 
 
     if (!isDataLoaded) {
-        return <div className="flex h-[calc(100vh-8rem)] items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
+        return null;
     }
     
     return (
@@ -186,9 +186,9 @@ export default function AnalyticsPage() {
                                         />}
                                     />
                                     <ChartLegend content={<ChartLegendContent />} />
-                                    <Line dataKey="netWorth" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" />
-                                    <Line dataKey="liquidity" type="monotone" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Liquidity" />
-                                    <Line dataKey="reserves" type="monotone" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Reserves" />
+                                    <Line dataKey="netWorth" type="monotone" stroke="var(--color-netWorth)" strokeWidth={2} name="Net Worth" />
+                                    <Line dataKey="liquidity" type="monotone" stroke="var(--color-liquidity)" strokeWidth={2} name="Liquidity" />
+                                    <Line dataKey="reserves" type="monotone" stroke="var(--color-reserves)" strokeWidth={2} name="Reserves" />
                                 </LineChart>
                             </ChartContainer>
                             <ChartContainer config={{}} className="h-[400px] w-full">
@@ -212,7 +212,7 @@ export default function AnalyticsPage() {
                                             labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
                                         />}
                                     />
-                                    <Line dataKey="expenses" type="monotone" stroke="hsl(var(--chart-3))" strokeWidth={2} name="Expenses" />
+                                    <Line dataKey="expenses" type="monotone" stroke="var(--color-expenses)" strokeWidth={2} name="Expenses" />
                                 </LineChart>
                             </ChartContainer>
                         </div>

@@ -4,9 +4,7 @@
 import * as React from "react";
 import { useMemo } from "react";
 import {
-    ArrowUpRight,
     LineChart as LineChartIcon,
-    ArrowDownRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from 'next/link';
 
 
 export default function DashboardPage() {
@@ -91,18 +90,32 @@ export default function DashboardPage() {
   };
   
   if (!isDataLoaded) {
-      return <div className="flex h-[calc(100vh-8rem)] items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
+      return null;
   }
   
   const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
 
+  const chartConfig = {
+      netWorth: {
+          label: "Net Worth",
+          color: "hsl(var(--chart-1))",
+      },
+      liquidity: {
+          label: "Liquidity",
+          color: "hsl(var(--chart-2))",
+      },
+      reserves: {
+          label: "Reserves",
+          color: "hsl(var(--chart-3))",
+      },
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header with actions */}
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-                <p className="text-gray-600">Overview of your financial status.</p>
+                <p className="text-gray-600">Overview of your financial status for <span className="font-semibold text-primary">{format(new Date(formattedCurrentMonth), "MMMM yyyy")}</span>. <Link href="/dashboard/wallets" className="text-sm text-primary hover:underline">Edit Wallet Data</Link></p>
             </div>
             <div className="flex items-center gap-2">
                  <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
@@ -121,63 +134,33 @@ export default function DashboardPage() {
             </div>
         </div>
       
-      {/* Balance and Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {/* Net Worth */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
-             <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Net Worth</CardTitle>
-                    <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</span>
-                    </div>
-                </div>
-             </div>
+             <CardTitle className="text-sm font-medium text-gray-500">Net Worth</CardTitle>
+             <div className="text-2xl font-bold">₹{netWorth.toLocaleString('en-IN')}</div>
           </CardHeader>
         </Card>
-        {/* Opening Balance */}
         <Card>
           <CardHeader>
-             <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Opening Balance</CardTitle>
-                    <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold text-gray-700">₹{openingBalance.toLocaleString('en-IN')}</span>
-                    </div>
-                </div>
-             </div>
+            <CardTitle className="text-sm font-medium text-gray-500">Opening Balance</CardTitle>
+            <div className="text-2xl font-bold">₹{openingBalance.toLocaleString('en-IN')}</div>
           </CardHeader>
         </Card>
-        {/* Closing Balance */}
         <Card>
           <CardHeader>
-             <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Closing Balance (Liquid)</CardTitle>
-                    <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold text-blue-600">₹{closingBalance.toLocaleString('en-IN')}</span>
-                    </div>
-                </div>
-             </div>
+            <CardTitle className="text-sm font-medium text-gray-500">Closing Balance (Liquid)</CardTitle>
+            <div className="text-2xl font-bold">₹{closingBalance.toLocaleString('en-IN')}</div>
           </CardHeader>
         </Card>
-         {/* Total Reserves */}
         <Card>
            <CardHeader>
-             <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle className="text-sm font-medium text-gray-500">Total Reserves</CardTitle>
-                    <div className="flex items-baseline mt-1">
-                        <span className="text-2xl font-bold text-orange-500">₹{totalReserves.toLocaleString('en-IN')}</span>
-                    </div>
-                </div>
-             </div>
+             <CardTitle className="text-sm font-medium text-gray-500">Reserves & Investments</CardTitle>
+             <div className="text-2xl font-bold">₹{totalReserves.toLocaleString('en-IN')}</div>
           </CardHeader>
         </Card>
       </div>
 
-       {/* Cash Flow Section */}
       <div className="grid grid-cols-1 gap-6">
           <Card>
             <CardHeader>
@@ -186,7 +169,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 {monthlySummary.length > 1 ? (
-                     <ChartContainer config={{}} className="h-[400px] w-full">
+                     <ChartContainer config={chartConfig} className="h-[400px] w-full">
                         <ComposedChart data={monthlySummary}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" />
                             <XAxis 
@@ -209,14 +192,14 @@ export default function DashboardPage() {
                                 cursor={{fill: 'hsl(var(--muted))'}}
                                 content={<ChartTooltipContent 
                                     className="bg-background/80 backdrop-blur-sm"
-                                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name as keyof typeof chartConfig]}
                                     labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
                                 />}
                             />
                             <ChartLegend content={<ChartLegendContent />} />
-                            <Bar dataKey="liquidity" yAxisId="left" fill="hsl(var(--chart-2))" name="Liquidity" />
-                            <Bar dataKey="reserves" yAxisId="left" fill="hsl(var(--chart-4))" name="Reserves" />
-                            <Line dataKey="netWorth" yAxisId="right" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" dot={false} />
+                            <Bar dataKey="liquidity" yAxisId="left" fill="var(--color-liquidity)" name="Liquidity" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="reserves" yAxisId="left" fill="var(--color-reserves)" name="Reserves" radius={[4, 4, 0, 0]}/>
+                            <Line dataKey="netWorth" yAxisId="right" type="monotone" stroke="var(--color-netWorth)" strokeWidth={2} name="Net Worth" dot={false} />
                         </ComposedChart>
                     </ChartContainer>
                 ) : (
