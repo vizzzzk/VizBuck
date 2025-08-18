@@ -12,7 +12,8 @@ import {
   LineChart,
   Wallet,
   DollarSign,
-  Edit
+  Gift,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -125,7 +126,7 @@ export default function DashboardLayout({
             </div>
         </header>
         <div className="flex">
-          <aside className="w-64 border-r border-border/50 bg-background">
+          <aside className="w-64 border-r border-border/50 bg-background flex flex-col justify-between">
             <div className="p-4">
               <div className="mb-6">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-3">
@@ -162,8 +163,25 @@ export default function DashboardLayout({
                       Import
                     </Button>
                   </li>
+                   <li>
+                    <Button variant={isActive('/dashboard/wishlist') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/wishlist')}>
+                      <Gift className="mr-3 h-4 w-4" />
+                      Wishlist
+                    </Button>
+                  </li>
                 </ul>
               </div>
+            </div>
+             <div className="p-4 border-t border-border/50">
+                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-3">
+                  SUPPORT
+                </h3>
+                 <Button variant={'ghost'} className="w-full justify-start" asChild>
+                    <Link href="mailto:support@example.com">
+                      <HelpCircle className="mr-3 h-4 w-4" />
+                      Contact Developer
+                    </Link>
+                  </Button>
             </div>
           </aside>
 

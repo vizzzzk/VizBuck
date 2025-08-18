@@ -9,9 +9,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { Bar, BarChart, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Cell } from "recharts";
 import { useFinancials } from '@/hooks/use-financials';
-import { format, getYear, getMonth, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, getYear, getMonth, parseISO } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -22,7 +22,13 @@ import {
 import { Label } from '@/components/ui/label';
 
 type YearType = 'calendar' | 'financial';
-const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+const CHART_COLORS = [
+    "hsl(var(--chart-1))", 
+    "hsl(var(--chart-2))", 
+    "hsl(var(--chart-3))", 
+    "hsl(var(--chart-4))", 
+    "hsl(var(--chart-5))"
+];
 
 
 export default function AnalyticsPage() {
@@ -105,11 +111,7 @@ export default function AnalyticsPage() {
             }, {} as Record<string, number>);
 
         return Object.entries(spending)
-            .map(([category, total], index) => ({
-                name: category,
-                total,
-                fill: CHART_COLORS[index % CHART_COLORS.length]
-            }))
+            .map(([category, total]) => ({ name: category, total }))
             .sort((a,b) => b.total - a.total);
 
     }, [selectedMonth, monthlyData, isDataLoaded]);
@@ -118,6 +120,13 @@ export default function AnalyticsPage() {
     if (!isDataLoaded) {
         return null;
     }
+    
+    const chartConfig = {
+        netWorth: { label: "Net Worth", color: "hsl(var(--chart-1))" },
+        liquidity: { label: "Liquidity", color: "hsl(var(--chart-2))" },
+        reserves: { label: "Reserves", color: "hsl(var(--chart-3))" },
+        expenses: { label: "Expenses", color: "hsl(var(--chart-4))" }
+    };
     
     return (
         <div className="flex flex-col gap-6">
@@ -164,7 +173,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                     {filteredData.length > 0 ? (
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                             <ChartContainer config={{}} className="h-[400px] w-full">
+                             <ChartContainer config={chartConfig} className="h-[400px] w-full">
                                 <p className="text-sm text-center font-medium text-muted-foreground pb-4">Net Worth, Liquidity & Reserves</p>
                                 <LineChart data={filteredData}>
                                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -181,17 +190,17 @@ export default function AnalyticsPage() {
                                         cursor={{fill: 'hsl(var(--muted))'}}
                                         content={<ChartTooltipContent 
                                             className="bg-background/80 backdrop-blur-sm"
-                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name as string]}
                                             labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
                                         />}
                                     />
                                     <ChartLegend content={<ChartLegendContent />} />
-                                    <Line dataKey="netWorth" type="monotone" stroke="var(--color-netWorth)" strokeWidth={2} name="Net Worth" />
-                                    <Line dataKey="liquidity" type="monotone" stroke="var(--color-liquidity)" strokeWidth={2} name="Liquidity" />
-                                    <Line dataKey="reserves" type="monotone" stroke="var(--color-reserves)" strokeWidth={2} name="Reserves" />
+                                    <Line dataKey="netWorth" type="monotone" stroke="var(--color-netWorth)" strokeWidth={2} name="Net Worth" dot={false} />
+                                    <Line dataKey="liquidity" type="monotone" stroke="var(--color-liquidity)" strokeWidth={2} name="Liquidity" dot={false}/>
+                                    <Line dataKey="reserves" type="monotone" stroke="var(--color-reserves)" strokeWidth={2} name="Reserves" dot={false}/>
                                 </LineChart>
                             </ChartContainer>
-                            <ChartContainer config={{}} className="h-[400px] w-full">
+                            <ChartContainer config={chartConfig} className="h-[400px] w-full">
                                 <p className="text-sm text-center font-medium text-muted-foreground pb-4">Total Monthly Expenses</p>
                                 <LineChart data={filteredData}>
                                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -208,11 +217,11 @@ export default function AnalyticsPage() {
                                         cursor={{fill: 'hsl(var(--muted))'}}
                                         content={<ChartTooltipContent 
                                             className="bg-background/80 backdrop-blur-sm"
-                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                            formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name as string]}
                                             labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
                                         />}
                                     />
-                                    <Line dataKey="expenses" type="monotone" stroke="var(--color-expenses)" strokeWidth={2} name="Expenses" />
+                                    <Line dataKey="expenses" type="monotone" stroke="var(--color-expenses)" strokeWidth={2} name="Expenses" dot={false} />
                                 </LineChart>
                             </ChartContainer>
                         </div>
@@ -271,6 +280,9 @@ export default function AnalyticsPage() {
                                     />}
                                 />
                                 <Bar dataKey="total" radius={4}>
+                                     {categorySpendingData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                    ))}
                                 </Bar>
                             </BarChart>
                         </ChartContainer>

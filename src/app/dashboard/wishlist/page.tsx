@@ -1,15 +1,16 @@
 
 "use client"
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2, Edit, Save, X, Sparkles, Loader } from "lucide-react";
+import { Trash2, Edit, Save, X, Sparkles, Loader, Gift } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Image from 'next/image';
 import { getWishlistImage } from '@/ai/flows/get-wishlist-image';
+import { useToast } from '@/hooks/use-toast';
 
 interface WishlistItem {
     id: number;
@@ -29,11 +30,20 @@ export default function WishlistPage() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingSaved, setEditingSaved] = useState<string>('');
     const [isImageLoading, setIsImageLoading] = useState<number | null>(null);
+    const { toast } = useToast();
 
 
     const handleAddItem = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newItemName || !newItemPrice) return;
+        if (!newItemName || !newItemPrice) {
+            toast({
+                variant: "destructive",
+                title: "Missing fields",
+                description: "Please provide both an item name and a price."
+            });
+            return;
+        }
+
         const newId = Date.now();
         const newItem: WishlistItem = {
             id: newId,
@@ -51,9 +61,17 @@ export default function WishlistPage() {
         try {
             const {imageUrl} = await getWishlistImage({itemName: newItem.name});
             setWishlist(prev => prev.map(item => item.id === newId ? {...item, imageUrl} : item));
+             toast({
+                title: "Image Generated!",
+                description: `A new image for ${newItem.name} has been created.`
+            });
         } catch (error) {
             console.error("Failed to generate image:", error);
-            // Keep placeholder on error
+            toast({
+                variant: "destructive",
+                title: "Image Generation Failed",
+                description: "Could not generate an image. Using a placeholder."
+            });
         } finally {
             setIsImageLoading(null);
         }
@@ -61,6 +79,7 @@ export default function WishlistPage() {
 
     const handleRemoveItem = (id: number) => {
         setWishlist(wishlist.filter(item => item.id !== id));
+        toast({ title: "Item removed from wishlist." });
     };
 
     const handleStartEditing = (item: WishlistItem) => {
@@ -78,6 +97,7 @@ export default function WishlistPage() {
             item.id === id ? { ...item, saved: parseFloat(editingSaved) || 0 } : item
         ));
         handleCancelEditing();
+        toast({ title: "Saved amount updated." });
     }
 
     return (
@@ -85,7 +105,7 @@ export default function WishlistPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Add to Wishlist</CardTitle>
-                    <CardDescription>What are you saving up for next?</CardDescription>
+                    <CardDescription>What are you saving up for next? Add it here to track your progress.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleAddItem} className="flex flex-col md:flex-row items-end gap-4">
@@ -97,9 +117,18 @@ export default function WishlistPage() {
                             <Label htmlFor="item-price">Target Price (₹)</Label>
                             <Input id="item-price" type="number" placeholder="e.g., 50000" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} />
                         </div>
-                        <Button type="submit" className="gap-1 w-full md:w-auto">
-                            <Sparkles className="h-4 w-4" />
-                            Add & Generate Image
+                        <Button type="submit" className="gap-1 w-full md:w-auto" disabled={isImageLoading !== null}>
+                             {isImageLoading !== null ? (
+                                <>
+                                <Loader className="animate-spin" />
+                                Generating...
+                                </>
+                            ) : (
+                                <>
+                                <Sparkles className="h-4 w-4" />
+                                Add & Generate Image
+                                </>
+                            )}
                         </Button>
                     </form>
                 </CardContent>
@@ -109,12 +138,13 @@ export default function WishlistPage() {
                  <h3 className="text-xl font-semibold">Your Wishlist</h3>
                  {wishlist.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                        <p className="text-muted-foreground">Your wishlist is empty.</p>
+                        <Gift className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground font-semibold">Your wishlist is empty.</p>
                         <p className="text-sm text-muted-foreground">Add an item above to start saving!</p>
                     </div>
                  )}
                  {wishlist.map(item => {
-                    const progress = item.price > 0 ? (item.saved / item.price) * 100 : 100;
+                    const progress = item.price > 0 ? (item.saved / item.price) * 100 : 0;
                     const isEditingThis = editingId === item.id;
 
                     return (
@@ -179,4 +209,3 @@ export default function WishlistPage() {
         </div>
     );
 }
-

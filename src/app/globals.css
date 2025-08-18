@@ -26,11 +26,11 @@
     --ring: 210 90% 60%;
     --radius: 0.5rem;
 
-    --chart-1: 48 96% 61%; /* Gold/Yellow */
-    --chart-2: 0 72% 51%; /* Red */
-    --chart-3: 210 90% 60%; /* Blue */
-    --chart-4: 220 10% 55%; /* Gray */
-    --chart-5: 160 60% 45%; /* Teal */
+    --chart-1: 210 90% 55%; /* Net Worth - Blue */
+    --chart-2: 170 80% 45%; /* Liquidity - Cyan/Green */
+    --chart-3: 260 90% 65%; /* Reserves - Purple */
+    --chart-4: 340 90% 65%; /* Expenses - Pink/Red */
+    --chart-5: 48 96% 61%; /* Gold/Yellow */
   }
 
   .dark {
