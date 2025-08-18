@@ -176,12 +176,11 @@ export default function DashboardLayout({
                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-3">
                   SUPPORT
                 </h3>
-                 <Button variant={'ghost'} className="w-full justify-start" asChild>
-                    <Link href="mailto:support@example.com">
-                      <HelpCircle className="mr-3 h-4 w-4" />
-                      Contact Developer
-                    </Link>
-                  </Button>
+                <div className="px-3 text-sm text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground">Contact Developer</p>
+                  <p>For any support or inquiries, please email us at:</p>
+                  <p className="font-medium text-primary">incomingvirus.iv@gmail.com</p>
+                </div>
             </div>
           </aside>
 
