@@ -1,11 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Extracts bank transactions from a CSV file.
- *
- * - extractTransactionsFromCsv - A function that handles the transaction extraction.
- * - ExtractCsvInput - The input type for the function.
- * - ExtractCsvOutput - The return type for the function.
+ * @fileOverview DEPRECATED: This flow is no longer used. Replaced by extract-transactions.ts for PDF processing.
  */
 
 import {ai} from '@/ai/genkit';

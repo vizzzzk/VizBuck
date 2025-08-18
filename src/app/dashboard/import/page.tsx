@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, Loader, CheckCircle, AlertCircle, Inbox, FileText, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFinancials, Transaction } from '@/hooks/use-financials';
-import { extractTransactionsFromCsv, ExtractCsvOutput } from '@/ai/flows/extract-transactions-from-csv';
+import { useFinancials } from '@/hooks/use-financials';
+import { extractTransactions, ExtractTransactionsOutput } from '@/ai/flows/extract-transactions';
 import {
   Table,
   TableBody,
@@ -27,25 +27,25 @@ export default function ImportPage() {
     const [file, setFile] = useState<File | null>(null);
     const [bankName, setBankName] = useState('');
     const [step, setStep] = useState<ImportStep>('upload');
-    const [extractedData, setExtractedData] = useState<ExtractCsvOutput | null>(null);
+    const [extractedData, setExtractedData] = useState<ExtractTransactionsOutput | null>(null);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
     const { addMultipleTransactions } = useFinancials();
     
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
-        if (selectedFile && (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv'))) {
+        if (selectedFile && selectedFile.type === 'application/pdf') {
             setFile(selectedFile);
             setError(null);
         } else {
             setFile(null);
-            setError("Please upload a valid CSV file.");
+            setError("Please upload a valid PDF file.");
         }
     };
 
     const handleExtract = async () => {
         if (!file || !bankName) {
-            toast({ variant: "destructive", title: "Missing information", description: "Please select a CSV file and enter the bank name." });
+            toast({ variant: "destructive", title: "Missing information", description: "Please select a PDF file and enter the bank name." });
             return;
         }
 
@@ -55,15 +55,15 @@ export default function ImportPage() {
         try {
             const reader = new FileReader();
             reader.onload = async (event) => {
-                const csvData = event.target?.result as string;
+                const pdfDataUri = event.target?.result as string;
                 try {
-                    const result = await extractTransactionsFromCsv({ csvData, bankName });
+                    const result = await extractTransactions({ pdfDataUri, bankName });
                     if (result && result.transactions.length > 0) {
                         setExtractedData(result);
                         setStep('review');
                         toast({ title: "Extraction Successful", description: `${result.transactions.length} transactions found. Please review.` });
                     } else {
-                        throw new Error("No transactions were found in the file.");
+                        throw new Error("No transactions were found in the PDF.");
                     }
                 } catch (e: any) {
                     setError(`Failed to extract transactions: ${e.message}`);
@@ -74,7 +74,7 @@ export default function ImportPage() {
                  setError("Failed to read the file.");
                  setStep('upload');
             }
-            reader.readAsText(file);
+            reader.readAsDataURL(file);
         } catch (e: any) {
             setError(`An unexpected error occurred: ${e.message}`);
             setStep('upload');
@@ -84,7 +84,6 @@ export default function ImportPage() {
     const handleConfirmImport = () => {
         if (!extractedData) return;
         
-        // Transform to the format expected by useFinancials
         const transactionsToImport = extractedData.transactions.map(t => ({
             ...t,
             date: format(parseISO(t.date), 'yyyy-MM-dd'),
@@ -116,12 +115,12 @@ export default function ImportPage() {
                 <div className="grid gap-2">
                     <Label htmlFor="bank-name">Bank Name</Label>
                     <Input id="bank-name" placeholder="e.g., HDFC Bank, ICICI Bank" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-                    <p className="text-sm text-muted-foreground">This helps the AI correctly label the payment source.</p>
+                    <p className="text-sm text-muted-foreground">This provides context for the AI to correctly label the payment source.</p>
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="csv-file">Bank Statement (CSV)</Label>
+                    <Label htmlFor="pdf-file">Bank Statement (PDF)</Label>
                     <div className="flex items-center justify-center w-full">
-                        <label htmlFor="csv-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-card">
+                        <label htmlFor="pdf-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-card">
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                 {file ? (
                                     <>
@@ -133,11 +132,11 @@ export default function ImportPage() {
                                     <>
                                         <Inbox className="w-10 h-10 mb-3 text-muted-foreground" />
                                         <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                        <p className="text-xs text-muted-foreground">CSV file from your bank</p>
+                                        <p className="text-xs text-muted-foreground">PDF file from your bank</p>
                                     </>
                                 )}
                             </div>
-                            <Input id="csv-file" type="file" className="hidden" accept=".csv" onChange={handleFileChange} />
+                            <Input id="pdf-file" type="file" className="hidden" accept="application/pdf" onChange={handleFileChange} />
                         </label>
                     </div>
                 </div>
@@ -222,14 +221,14 @@ export default function ImportPage() {
         <div className="grid gap-6">
             <Card className="max-w-4xl mx-auto w-full">
                 <CardHeader>
-                    <CardTitle>Import Transactions from CSV</CardTitle>
+                    <CardTitle>Import Transactions from PDF</CardTitle>
                     <CardDescription>
-                        Download a CSV statement from your bank&apos;s website and upload it here for automatic processing.
+                        Download a PDF statement from your bank's website and upload it here for automatic processing.
                     </CardDescription>
                 </CardHeader>
                 
                 {step === 'upload' && renderUploadStep()}
-                {step === 'importing' && renderInProgress("Extracting Transactions...", "The AI is analyzing your file. Please wait a moment.")}
+                {step === 'importing' && renderInProgress("Extracting Transactions...", "The AI is analyzing your PDF. This may take a minute.")}
                 {step === 'review' && renderReviewStep()}
                 {step === 'complete' && renderCompleteStep()}
 
