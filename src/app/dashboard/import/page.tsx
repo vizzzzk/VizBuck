@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Loader, CheckCircle, AlertCircle, Inbox, FileText, Trash2 } from 'lucide-react';
+import { Upload, Loader, CheckCircle, AlertCircle, Inbox, FileText, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancials } from '@/hooks/use-financials';
 import { extractTransactions, ExtractTransactionsOutput } from '@/ai/flows/extract-transactions';
@@ -20,17 +20,23 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+
 
 type ImportStep = 'upload' | 'review' | 'importing' | 'complete';
+type TransactionWithState = ExtractTransactionsOutput['transactions'][0] & { popoverOpen?: boolean };
+
 
 export default function ImportPage() {
     const [file, setFile] = useState<File | null>(null);
     const [bankName, setBankName] = useState('');
     const [step, setStep] = useState<ImportStep>('upload');
-    const [extractedData, setExtractedData] = useState<ExtractTransactionsOutput | null>(null);
+    const [extractedData, setExtractedData] = useState<(ExtractTransactionsOutput & { transactions: TransactionWithState[] }) | null>(null);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
-    const { addMultipleTransactions } = useFinancials();
+    const { addMultipleTransactions, currentMonthData } = useFinancials();
     
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -59,7 +65,7 @@ export default function ImportPage() {
                 try {
                     const result = await extractTransactions({ pdfDataUri, bankName: bankName || "Unknown Bank" });
                     if (result && result.transactions.length > 0) {
-                        setExtractedData(result);
+                        setExtractedData({...result, transactions: result.transactions.map(t => ({...t, popoverOpen: false}))});
                         setStep('review');
                         toast({ title: "Extraction Successful", description: `${result.transactions.length} transactions found. Please review.` });
                     } else {
@@ -109,6 +115,30 @@ export default function ImportPage() {
         setExtractedData({ ...extractedData, transactions: updatedTransactions });
     }
 
+    const handleCategoryChange = (index: number, category: string) => {
+        if (!extractedData) return;
+        const updatedTransactions = [...extractedData.transactions];
+        updatedTransactions[index].category = category;
+        updatedTransactions[index].popoverOpen = false;
+        setExtractedData({ ...extractedData, transactions: updatedTransactions });
+    }
+
+    const setPopoverOpen = (index: number, open: boolean) => {
+        if (!extractedData) return;
+        const updatedTransactions = extractedData.transactions.map((t, i) => ({
+            ...t,
+            popoverOpen: i === index ? open : false,
+        }));
+        setExtractedData({ ...extractedData, transactions: updatedTransactions });
+    };
+
+    const categories = useMemo(() => {
+        const existingCategories = Array.from(new Set(currentMonthData.transactions.map(t => t.category).filter(Boolean)));
+        const defaultCategories = ['Food & Dining', 'Shopping', 'Travel', 'Utilities', 'Entertainment', 'Salary', 'Other'];
+        return Array.from(new Set([...defaultCategories, ...existingCategories]));
+    }, [currentMonthData.transactions]);
+
+
     const renderUploadStep = () => (
          <CardContent>
             <div className="space-y-4">
@@ -157,14 +187,14 @@ export default function ImportPage() {
     const renderReviewStep = () => (
          <CardContent>
             <div className="space-y-4">
-                <p className="text-muted-foreground">Review the extracted transactions below. Remove any incorrect entries before confirming the import.</p>
+                <p className="text-muted-foreground">Review and categorize the extracted transactions below. Remove any incorrect entries before confirming.</p>
                  <div className="max-h-[400px] overflow-auto border rounded-md">
                      <Table>
                         <TableHeader className="sticky top-0 bg-muted">
                             <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Description</TableHead>
-                                <TableHead>Category</TableHead>
+                                <TableHead className="w-[200px]">Category</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
@@ -175,7 +205,15 @@ export default function ImportPage() {
                                 <TableRow key={index}>
                                     <TableCell>{format(parseISO(t.date), 'dd MMM yyyy')}</TableCell>
                                     <TableCell className="font-medium">{t.description}</TableCell>
-                                    <TableCell>{t.category}</TableCell>
+                                    <TableCell>
+                                        <CategorySelector 
+                                            value={t.category} 
+                                            onSelect={(cat) => handleCategoryChange(index, cat)}
+                                            isOpen={t.popoverOpen ?? false}
+                                            onOpenChange={(open) => setPopoverOpen(index, open)}
+                                            allCategories={categories}
+                                        />
+                                    </TableCell>
                                     <TableCell className="text-right">₹{t.amount.toLocaleString('en-IN')}</TableCell>
                                     <TableCell>
                                         <Badge variant={t.type === 'DR' ? 'destructive' : 'default'} className="bg-opacity-20">{t.type}</Badge>
@@ -237,4 +275,71 @@ export default function ImportPage() {
     );
 }
 
-export const dynamic = 'force-dynamic';
+// Category Selector Component
+interface CategorySelectorProps {
+    value: string;
+    onSelect: (value: string) => void;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    allCategories: string[];
+}
+
+function CategorySelector({ value, onSelect, isOpen, onOpenChange, allCategories }: CategorySelectorProps) {
+    const [newCategory, setNewCategory] = useState('');
+    
+    return (
+        <Popover open={isOpen} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isOpen}
+                    className="w-full justify-between"
+                >
+                    {value || "Select category..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                <Command>
+                    <CommandInput 
+                        placeholder="Search or create..." 
+                        value={newCategory}
+                        onValueChange={setNewCategory}
+                    />
+                    <CommandList>
+                        <CommandEmpty>
+                             <Button className="w-full" size="sm" onClick={() => {
+                                onSelect(newCategory);
+                                setNewCategory('');
+                            }}>
+                                Create "{newCategory}"
+                            </Button>
+                        </CommandEmpty>
+                        <CommandGroup>
+                            {allCategories.map((category) => (
+                            <CommandItem
+                                key={category}
+                                value={category}
+                                onSelect={(currentValue) => {
+                                    onSelect(currentValue === value ? "" : currentValue);
+                                }}
+                            >
+                                <Check
+                                    className={cn(
+                                        "mr-2 h-4 w-4",
+                                        value === category ? "opacity-100" : "opacity-0"
+                                    )}
+                                />
+                                {category}
+                            </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+    

@@ -144,12 +144,6 @@ export default function DashboardLayout({
                       Wallets
                     </Button>
                   </li>
-                   <li>
-                    <Button variant={isActive('/dashboard/analytics') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/analytics')}>
-                      <LineChart className="mr-3 h-4 w-4" />
-                      Analytics
-                    </Button>
-                  </li>
                   <li>
                     <Button variant={isActive('/dashboard/transactions') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/transactions')}>
                       <List className="mr-3 h-4 w-4" />
@@ -157,15 +151,21 @@ export default function DashboardLayout({
                     </Button>
                   </li>
                    <li>
-                    <Button variant={isActive('/dashboard/wishlist') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/wishlist')}>
-                      <Gift className="mr-3 h-4 w-4" />
-                      Wishlist
-                    </Button>
-                  </li>
-                   <li>
                     <Button variant={isActive('/dashboard/import') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/import')}>
                       <Upload className="mr-3 h-4 w-4" />
                       Import
+                    </Button>
+                  </li>
+                   <li>
+                    <Button variant={isActive('/dashboard/analytics') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/analytics')}>
+                      <LineChart className="mr-3 h-4 w-4" />
+                      Analytics
+                    </Button>
+                  </li>
+                  <li>
+                    <Button variant={isActive('/dashboard/wishlist') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/wishlist')}>
+                      <Gift className="mr-3 h-4 w-4" />
+                      Wishlist
                     </Button>
                   </li>
                 </ul>
@@ -199,3 +199,5 @@ export default function DashboardLayout({
     </FinancialsProvider>
   );
 }
+
+    
