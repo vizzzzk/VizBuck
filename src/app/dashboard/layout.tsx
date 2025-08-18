@@ -12,6 +12,7 @@ import {
   Wallet,
   DollarSign,
   Gift,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -159,6 +160,12 @@ export default function DashboardLayout({
                     <Button variant={isActive('/dashboard/wishlist') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/wishlist')}>
                       <Gift className="mr-3 h-4 w-4" />
                       Wishlist
+                    </Button>
+                  </li>
+                   <li>
+                    <Button variant={isActive('/dashboard/import') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/import')}>
+                      <Upload className="mr-3 h-4 w-4" />
+                      Import
                     </Button>
                   </li>
                 </ul>
