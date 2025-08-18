@@ -22,7 +22,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { format } from 'date-fns';
 
 export default function DashboardPage() {
@@ -134,7 +134,7 @@ export default function DashboardPage() {
             <CardContent>
                 {monthlySummary.length > 1 ? (
                      <ChartContainer config={{}} className="h-[400px] w-full">
-                        <LineChart data={monthlySummary}>
+                        <ComposedChart data={monthlySummary}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" />
                             <XAxis 
                                 dataKey="month" 
@@ -142,6 +142,13 @@ export default function DashboardPage() {
                                 padding={{ left: 20, right: 20 }}
                             />
                             <YAxis 
+                                yAxisId="left"
+                                tickFormatter={(value) => `₹${value / 1000}k`}
+                                width={80}
+                            />
+                             <YAxis 
+                                yAxisId="right"
+                                orientation="right"
                                 tickFormatter={(value) => `₹${value / 1000}k`}
                                 width={80}
                             />
@@ -154,10 +161,10 @@ export default function DashboardPage() {
                                 />}
                             />
                             <ChartLegend content={<ChartLegendContent />} />
-                            <Line dataKey="netWorth" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" />
-                            <Line dataKey="liquidity" type="monotone" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Liquidity" />
-                            <Line dataKey="reserves" type="monotone" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Reserves" />
-                        </LineChart>
+                            <Bar dataKey="liquidity" yAxisId="left" fill="hsl(var(--chart-2))" name="Liquidity" />
+                            <Bar dataKey="reserves" yAxisId="left" fill="hsl(var(--chart-4))" name="Reserves" />
+                            <Line dataKey="netWorth" yAxisId="right" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" dot={false} />
+                        </ComposedChart>
                     </ChartContainer>
                 ) : (
                     <div className="h-80 w-full flex flex-col items-center justify-center bg-gray-100 rounded-lg">
@@ -172,3 +179,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
