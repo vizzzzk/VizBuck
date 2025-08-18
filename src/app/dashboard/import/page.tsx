@@ -133,10 +133,11 @@ export default function ImportPage() {
     };
 
     const categories = useMemo(() => {
-        const existingCategories = Array.from(new Set(currentMonthData.transactions.map(t => t.category).filter(Boolean)));
         const defaultCategories = ['Food & Dining', 'Shopping', 'Travel', 'Utilities', 'Entertainment', 'Salary', 'Other'];
-        return Array.from(new Set([...defaultCategories, ...existingCategories]));
-    }, [currentMonthData.transactions]);
+        const existingCategories = Array.from(new Set(currentMonthData.transactions.map(t => t.category).filter(Boolean)));
+        const reviewingCategories = Array.from(new Set(extractedData?.transactions.map(t => t.category).filter(Boolean)));
+        return Array.from(new Set([...defaultCategories, ...existingCategories, ...reviewingCategories]));
+    }, [currentMonthData.transactions, extractedData?.transactions]);
 
 
     const renderUploadStep = () => (
@@ -341,5 +342,3 @@ function CategorySelector({ value, onSelect, isOpen, onOpenChange, allCategories
         </Popover>
     );
 }
-
-    
