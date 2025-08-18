@@ -12,9 +12,6 @@ import Image from 'next/image';
 import { getWishlistImage } from '@/ai/flows/get-wishlist-image';
 import { useToast } from '@/hooks/use-toast';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface WishlistItem {
     id: number;
     name: string;
