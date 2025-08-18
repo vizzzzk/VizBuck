@@ -18,30 +18,38 @@ import { Loader } from "lucide-react";
 export default function ProfilePage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [isSending, setIsSending] = useState(false);
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [displayName, setDisplayName] = useState(user?.displayName ?? "");
-    const [photo, setPhoto] = useState<File | null>(null);
-    const [photoURL, setPhotoURL] = useState(user?.photoURL ?? "");
-    const fileInputRef = useRef<HTMLInputElement>(null);
     
-    useEffect(() => {
-        if(user) {
-            setDisplayName(user.displayName ?? "");
-            setPhotoURL(user.photoURL ?? "");
-        }
-    }, [user]);
+    const [displayName, setDisplayName] = useState(user?.displayName ?? "");
+    const [file, setFile] = useState<File | null>(null);
+    const [preview, setPreview] = useState<string | null>(user?.photoURL ?? null);
+    const [busy, setBusy] = useState(false);
+    const [isSendingReset, setIsSendingReset] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
+    useEffect(() => {
+        if (!file) {
+            setPreview(user?.photoURL ?? null);
+            return;
+        };
+        const url = URL.createObjectURL(file);
+        setPreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file, user?.photoURL]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0] ?? null;
+        setFile(f);
+    };
 
     const handlePasswordReset = async () => {
         if (!user?.email) return;
 
-        setIsSending(true);
+        setIsSendingReset(true);
         try {
             await sendPasswordResetEmail(auth, user.email);
             toast({
                 title: "Password Reset Email Sent",
-                description: `An email has been sent to ${user.email} with instructions to reset your password.`,
+                description: `An email has been sent to ${user.email} with instructions.`,
             });
         } catch (error: any) {
              toast({
@@ -50,40 +58,42 @@ export default function ProfilePage() {
                 description: error.message,
             });
         } finally {
-            setIsSending(false);
+            setIsSendingReset(false);
         }
     }
     
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setPhoto(file);
-            setPhotoURL(URL.createObjectURL(file));
-        }
-    };
-    
-    const handleProfileUpdate = async () => {
-        if (!user) return;
-        setIsUpdating(true);
+    const handleProfileUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
         
+        if (!user) {
+             toast({ variant: "destructive", title: "Not signed in." });
+             return;
+        }
+
+        setBusy(true);
+
+        const timeout = setTimeout(() => {
+          if (busy) {
+             toast({ variant: "destructive", title: "Update timed out", description: "Taking longer than expected. Please check your connection and try again." });
+             setBusy(false);
+          }
+        }, 15000);
+
         try {
             let newPhotoURL = user.photoURL;
 
-            if (photo) {
-                const storageRef = ref(storage, `avatars/${user.uid}/${photo.name}`);
-                await uploadBytes(storageRef, photo);
+            if (file) {
+                const storageRef = ref(storage, `avatars/${user.uid}/${file.name}`);
+                await uploadBytes(storageRef, file);
                 newPhotoURL = await getDownloadURL(storageRef);
             }
             
             await updateProfile(user, {
                 displayName: displayName,
-                photoURL: newPhotoURL,
+                photoURL: newPhotoURL ?? user.photoURL,
             });
-            
-            // Directly update the state with the new URL to avoid waiting for `user` prop to refresh
-            if (newPhotoURL) {
-                setPhotoURL(newPhotoURL);
-            }
+
+            await user.reload();
             
             toast({
                 title: "Profile Updated",
@@ -91,13 +101,15 @@ export default function ProfilePage() {
             });
 
         } catch (error: any) {
+             console.error('Update profile error:', error?.code, error?.message || error);
              toast({
                 variant: "destructive",
                 title: "Update Failed",
                 description: error.message,
             });
         } finally {
-            setIsUpdating(false);
+            clearTimeout(timeout);
+            setBusy(false);
         }
     };
 
@@ -113,34 +125,36 @@ export default function ProfilePage() {
                     <CardTitle>Profile</CardTitle>
                     <CardDescription>Manage your personal information and account settings.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4">
-                         <Avatar className="h-20 w-20">
-                            <AvatarImage src={photoURL ?? ""} alt="User avatar" />
-                            <AvatarFallback className="text-3xl">
-                            {user.email?.[0].toUpperCase()}
-                            </AvatarFallback>
-                        </Avatar>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept="image/*"
-                        />
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Upload Picture</Button>
-                    </div>
-                   <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-                   </div>
-                   <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" defaultValue={user.email ?? ""} readOnly disabled/>
-                   </div>
-                    <Button onClick={handleProfileUpdate} disabled={isUpdating}>
-                        {isUpdating ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : "Update Profile" }
-                    </Button>
+                <CardContent>
+                    <form onSubmit={handleProfileUpdate} className="space-y-6">
+                         <div className="flex items-center gap-4">
+                             <Avatar className="h-20 w-20">
+                                <AvatarImage src={preview ?? ""} alt="User avatar" />
+                                <AvatarFallback className="text-3xl">
+                                {user.email?.[0].toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/png, image/jpeg"
+                            />
+                            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Upload Picture</Button>
+                        </div>
+                       <div className="space-y-2">
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input id="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                       </div>
+                       <div className="space-y-2">
+                            <Label htmlFor="email">Email Address</Label>
+                            <Input id="email" defaultValue={user.email ?? ""} readOnly disabled/>
+                       </div>
+                        <Button type="submit" disabled={busy}>
+                            {busy ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : "Update Profile" }
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
 
@@ -150,8 +164,8 @@ export default function ProfilePage() {
                     <CardDescription>Manage your password and account security.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Button onClick={handlePasswordReset} disabled={isSending}>
-                        {isSending ? "Sending..." : "Send Password Reset Email"}
+                    <Button onClick={handlePasswordReset} disabled={isSendingReset}>
+                        {isSendingReset ? "Sending..." : "Send Password Reset Email"}
                     </Button>
                 </CardContent>
             </Card>
