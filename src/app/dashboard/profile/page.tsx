@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -24,6 +24,14 @@ export default function ProfilePage() {
     const [photo, setPhoto] = useState<File | null>(null);
     const [photoURL, setPhotoURL] = useState(user?.photoURL ?? "");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    useEffect(() => {
+        if(user) {
+            setDisplayName(user.displayName ?? "");
+            setPhotoURL(user.photoURL ?? "");
+        }
+    }, [user]);
+
 
     const handlePasswordReset = async () => {
         if (!user?.email) return;
@@ -71,13 +79,11 @@ export default function ProfilePage() {
                 displayName: displayName,
                 photoURL: newPhotoURL,
             });
-
-            // Force a reload of the user to get the latest profile info
-            await user.reload();
-            if (newPhotoURL) {
+            
+            if(newPhotoURL) {
                 setPhotoURL(newPhotoURL);
             }
-
+            
             toast({
                 title: "Profile Updated",
                 description: "Your profile has been successfully updated.",
