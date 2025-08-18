@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFinancials, Liquidity, Reserves } from '@/hooks/use-financials';
+import { useFinancials, Liquidity, Reserves, Stock } from '@/hooks/use-financials';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, PlusCircle, Trash2 } from 'lucide-react';
+import { Edit, PlusCircle, Trash2, RefreshCw, Loader } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { getHoldings } from '@/ai/flows/get-holdings-flow';
 
 type AssetType = 'bankAccounts' | 'creditCards' | 'receivables' | 'fixedDeposits' | 'stocks' | 'crypto' | 'mutualFunds' | 'elss';
 
@@ -37,6 +38,7 @@ export default function WalletsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingAsset, setEditingAsset] = useState<any>(null);
     const [assetType, setAssetType] = useState<AssetType | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const handleEditClick = (asset: any, type: AssetType) => {
         setEditingAsset({ ...asset });
@@ -141,6 +143,36 @@ export default function WalletsPage() {
       const [year, month] = value.split("-");
       setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
     };
+
+    const handleSyncHoldings = async () => {
+        setIsSyncing(true);
+        toast({ title: "Syncing...", description: "Fetching latest holdings from Upstox." });
+        try {
+            const result = await getHoldings();
+            if (result.error) {
+                 toast({ variant: "destructive", title: "Sync Failed", description: result.error });
+            } else {
+                const newStocks: Stock[] = result.holdings.map(h => ({
+                    id: Date.now() + Math.random(), // simple unique id
+                    broker: "Upstox",
+                    amount: h.close_price * h.quantity,
+                    name: h.trading_symbol,
+                }));
+                
+                const updatedReserves = {
+                     ...currentMonthData.reserves,
+                     stocks: newStocks
+                };
+                updateReserves(updatedReserves);
+
+                toast({ title: "Sync Successful!", description: `${result.holdings.length} holdings updated.` });
+            }
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Sync Error", description: error.message || "An unexpected error occurred." });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
     
     const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
 
@@ -154,18 +186,24 @@ export default function WalletsPage() {
                         <CardTitle>Wallets & Assets</CardTitle>
                         <CardDescription>Manage your liquid assets and long-term reserves for the selected month.</CardDescription>
                     </div>
-                     <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue>
-                              {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            {availableMonths.map(m => (
-                              <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={handleSyncHoldings} disabled={isSyncing}>
+                            {isSyncing ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            Sync with Upstox
+                        </Button>
+                        <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue>
+                                {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableMonths.map(m => (
+                                <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardHeader>
             </Card>
 
@@ -208,7 +246,7 @@ export default function WalletsPage() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         {editingAsset && Object.keys(editingAsset)
-                            .filter(key => key !== 'id' && key !== '__typename' && key !== 'date')
+                            .filter(key => key !== 'id' && key !== '__typename' && key !== 'date' && key !== 'name')
                             .map(key => renderField(key, editingAsset[key]))
                         }
                     </div>
@@ -256,5 +294,3 @@ const AssetCard = ({ title, assets, type, onEdit, onAdd, onDelete }: { title: st
         </CardContent>
     </Card>
 );
-
-    

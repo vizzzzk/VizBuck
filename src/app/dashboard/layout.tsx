@@ -6,14 +6,12 @@ import Link from "next/link";
 import {
   Home,
   LogOut,
-  Upload,
   List,
   User as UserIcon,
   LineChart,
   Wallet,
   DollarSign,
   Gift,
-  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -155,12 +153,6 @@ export default function DashboardLayout({
                     <Button variant={isActive('/dashboard/transactions') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/transactions')}>
                       <List className="mr-3 h-4 w-4" />
                       Transactions
-                    </Button>
-                  </li>
-                   <li>
-                    <Button variant={isActive('/dashboard/import') ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => handleRouteChange('/dashboard/import')}>
-                      <Upload className="mr-3 h-4 w-4" />
-                      Import
                     </Button>
                   </li>
                    <li>

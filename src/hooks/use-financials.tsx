@@ -43,6 +43,7 @@ export interface Stock {
     id: number;
     broker: string;
     amount: number;
+    name?: string; // Optional name from API
 }
 
 export interface Crypto {
@@ -107,7 +108,7 @@ const initialMonthKey = format(startOfMonth(today), "yyyy-MM-01");
 
 const initialReserves: Reserves = {
     fixedDeposits: [{id: 1, institution: 'HDFC Bank', amount: 500000}],
-    stocks: [{id: 1, broker: 'Zerodha', amount: 750000}],
+    stocks: [{id: 1, broker: 'Zerodha', amount: 750000, name: 'Sample Stock'}],
     crypto: [{id: 1, exchange: 'WazirX', amount: 125000}],
     mutualFunds: [],
     elss: [],
@@ -526,4 +527,3 @@ export const useFinancials = () => {
   }
   return context;
 };
-
