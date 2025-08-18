@@ -80,7 +80,8 @@ export default function ProfilePage() {
                 photoURL: newPhotoURL,
             });
             
-            if(newPhotoURL) {
+            // Directly update the state with the new URL to avoid waiting for `user` prop to refresh
+            if (newPhotoURL) {
                 setPhotoURL(newPhotoURL);
             }
             
