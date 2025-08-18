@@ -11,18 +11,27 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFinancials, Liquidity, Reserves, BankAccount, CreditCard, Receivable, FixedDeposit, Stock, Crypto, MutualFund, Elss } from '@/hooks/use-financials';
+import { useFinancials, Liquidity, Reserves } from '@/hooks/use-financials';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, PlusCircle, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
 
 type AssetType = 'bankAccounts' | 'creditCards' | 'receivables' | 'fixedDeposits' | 'stocks' | 'crypto' | 'mutualFunds' | 'elss';
 
 export default function WalletsPage() {
-    const { currentMonthData, updateLiquidity, updateReserves, isDataLoaded } = useFinancials();
+    const { 
+        currentMonthData, 
+        updateLiquidity, 
+        updateReserves, 
+        isDataLoaded,
+        currentMonth,
+        setCurrentMonth,
+        availableMonths 
+    } = useFinancials();
     const { toast } = useToast();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -128,14 +137,35 @@ export default function WalletsPage() {
         );
     };
 
+    const handleMonthChange = (value: string) => {
+      const [year, month] = value.split("-");
+      setCurrentMonth({ year: parseInt(year), month: parseInt(month) });
+    };
+    
+    const formattedCurrentMonth = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
+
     if (!isDataLoaded) return <div>Loading...</div>;
 
     return (
         <div className="space-y-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Wallets & Assets</CardTitle>
-                    <CardDescription>Manage your liquid assets and long-term reserves.</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Wallets & Assets</CardTitle>
+                        <CardDescription>Manage your liquid assets and long-term reserves for the selected month.</CardDescription>
+                    </div>
+                     <Select value={formattedCurrentMonth} onValueChange={handleMonthChange}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue>
+                              {format(new Date(formattedCurrentMonth), "MMMM yyyy")}
+                            </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableMonths.map(m => (
+                              <SelectItem key={m} value={m}>{format(new Date(m), "MMMM yyyy")}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </CardHeader>
             </Card>
 
@@ -226,3 +256,5 @@ const AssetCard = ({ title, assets, type, onEdit, onAdd, onDelete }: { title: st
         </CardContent>
     </Card>
 );
+
+    
