@@ -5,6 +5,7 @@ import * as React from "react";
 import { useMemo } from "react";
 import {
     ArrowUpRight,
+    LineChart as LineChartIcon
 } from "lucide-react";
 import {
   Card,
@@ -14,11 +15,21 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { useFinancials } from "@/hooks/use-financials";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
+import { format } from 'date-fns';
 
 export default function DashboardPage() {
   const { 
     currentMonthData,
     isDataLoaded,
+    monthlySummary
   } = useFinancials();
 
   const { netWorth, closingBalance, totalReserves } = useMemo(() => {
@@ -117,17 +128,47 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6">
           <Card>
             <CardHeader>
-                <CardTitle>Cash Flow</CardTitle>
-                <CardDescription>A summary of your income and expenses.</CardDescription>
+                <CardTitle>Financial Overview</CardTitle>
+                <CardDescription>A summary of your key financial metrics over time.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="h-80 w-full flex items-center justify-center bg-gray-100 rounded-lg">
-                    <p className="text-gray-500">Chart will be displayed here.</p>
-                </div>
+                {monthlySummary.length > 1 ? (
+                     <ChartContainer config={{}} className="h-[400px] w-full">
+                        <LineChart data={monthlySummary}>
+                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                            <XAxis 
+                                dataKey="month" 
+                                tickFormatter={(value) => format(new Date(value), "MMM yy")}
+                                padding={{ left: 20, right: 20 }}
+                            />
+                            <YAxis 
+                                tickFormatter={(value) => `₹${value / 1000}k`}
+                                width={80}
+                            />
+                            <RechartsTooltip 
+                                cursor={{fill: 'hsl(var(--muted))'}}
+                                content={<ChartTooltipContent 
+                                    className="bg-background/80 backdrop-blur-sm"
+                                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                                    labelFormatter={(label) => format(new Date(label), "MMMM yyyy")}
+                                />}
+                            />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            <Line dataKey="netWorth" type="monotone" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Net Worth" />
+                            <Line dataKey="liquidity" type="monotone" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Liquidity" />
+                            <Line dataKey="reserves" type="monotone" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Reserves" />
+                        </LineChart>
+                    </ChartContainer>
+                ) : (
+                    <div className="h-80 w-full flex flex-col items-center justify-center bg-gray-100 rounded-lg">
+                        <LineChartIcon className="h-12 w-12 text-gray-400 mb-4" />
+                        <p className="text-gray-500">Not enough data to display a chart.</p>
+                        <p className="text-sm text-gray-400">Please add transactions for multiple months to see your trends.</p>
+                    </div>
+                )}
             </CardContent>
           </Card>
       </div>
     </div>
   );
 }
-
