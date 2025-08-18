@@ -21,6 +21,8 @@ interface WishlistItem {
     imageHint: string;
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function WishlistPage() {
     const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
     const [newItemName, setNewItemName] = useState('');

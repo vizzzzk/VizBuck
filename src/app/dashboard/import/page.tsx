@@ -16,6 +16,8 @@ import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
+export const dynamic = 'force-dynamic';
+
 export default function ImportPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
